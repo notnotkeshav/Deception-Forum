@@ -59,3 +59,7 @@ function generateInviteCode()
 {
    return substr(str_shuffle('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 25);
 }
+
+function generateToken() {
+   return bin2hex(random_bytes(35));
+}

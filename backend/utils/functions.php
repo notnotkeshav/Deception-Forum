@@ -1,6 +1,5 @@
 <?php
 
-use Backend\Utils\Response;
 # Array to string conversion Error => if we try to echo ["Array"], -> Do this instead:
 function dumpAndDie($value)
 {
@@ -17,17 +16,16 @@ function getURL()
    return $_SERVER['REQUEST_URI'];
 }
 
-function abort($code = 404)
+function abort($code = 404, $data)
 {
    http_response_code($code);
-   require view("errors/error{$code}.php");
-
+   require view("errors/{$code}.php", $data);
    die();
 }
 
 function base_path($path)
 {
-   return BASE_PATH   . ltrim($path, "/");
+   return BASE_PATH . ltrim($path, "/");
 }
 
 function view($path, $args = [])
@@ -42,12 +40,85 @@ function redirect($url)
    exit();
 }
 
-function getQueryParams(){
-   $url= getURL();
-   $url_components = parse_url($url);
-   parse_str($url_components['query'], $params);
-   return $params;
+function getQueryParams()
+{
+   try {
+      $url = getURL();
+      $url_components = parse_url($url);
+      if (isset($url_components['query'])) {
+         parse_str($url_components['query'], $params);
+         return $params;
+      } else {
+         return [];
+      }
+   } catch (Exception $e) {
+      return $e;
+   }
 }
+
+function getRequestBody()
+{
+   $rawData = file_get_contents('php://input');
+   $data = json_decode($rawData, true);
+   if (json_last_error() !== JSON_ERROR_NONE) {
+      return [];
+   }
+
+   return $data;
+}
+
+
+function getBearerToken()
+{
+   $headers = getallheaders();
+   if (isset($headers['Authorization'])) {
+      // Split the string to get the token
+      list($type, $token) = explode(' ', $headers['Authorization']);
+      if (strcasecmp($type, 'Bearer') === 0) {
+         return $token;
+      }
+   }
+   return null;
+}
+
+function generateRandomPassword($length = 25)
+{
+   if ($length < 25 || $length > 255) {
+      throw new InvalidArgumentException("Length must be between 25 and 255 characters.");
+   }
+
+   $uppercaseChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+   $lowercaseChars = 'abcdefghijklmnopqrstuvwxyz';
+   $digitChars = '0123456789';
+   $specialChars = '!@#$%^&*()_-+=<>?{}[]|~:;",\'./\\';
+
+   // Ensure we have at least 2 uppercase, 2 lowercase, 3 digits, and 5 special characters
+   $password = '';
+   $password .= $uppercaseChars[random_int(0, strlen($uppercaseChars) - 1)];
+   $password .= $uppercaseChars[random_int(0, strlen($uppercaseChars) - 1)];
+   $password .= $lowercaseChars[random_int(0, strlen($lowercaseChars) - 1)];
+   $password .= $lowercaseChars[random_int(0, strlen($lowercaseChars) - 1)];
+   $password .= $digitChars[random_int(0, strlen($digitChars) - 1)];
+   $password .= $digitChars[random_int(0, strlen($digitChars) - 1)];
+   $password .= $digitChars[random_int(0, strlen($digitChars) - 1)];
+
+   // Add special characters
+   for ($i = 0; $i < 5; $i++) {
+      $password .= $specialChars[random_int(0, strlen($specialChars) - 1)];
+   }
+
+   // Fill the rest of the password with random characters from all categories
+   $allChars = $uppercaseChars . $lowercaseChars . $digitChars . $specialChars;
+   $remainingLength = $length - strlen($password);
+
+   for ($i = 0; $i < $remainingLength; $i++) {
+      $password .= $allChars[random_int(0, strlen($allChars) - 1)];
+   }
+
+   // Shuffle the password to ensure randomness
+   return str_shuffle($password);
+}
+
 
 function loadEnv($file)
 {
@@ -66,5 +137,3 @@ function loadEnv($file)
       putenv("$key=$value");
    }
 }
-
-
