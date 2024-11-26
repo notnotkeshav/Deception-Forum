@@ -3,8 +3,8 @@
 <h2>User Signup Form</h2>
 
 
-<form action="" method="POST" enctype="multipart/form-data">
-   
+<form id="signupForm">
+
    <!-- Username -->
    <label for="username">Username:</label>
    <input type="username" id="username" name="username" maxlength="25" value=<?= $username ?> readonly required>
@@ -79,10 +79,9 @@
    <button type="submit">Sign Up</button>
 </form>
 
-<div class="error-block">
-   <?= $error['msg'] ?? null ?>
+<div id="error-block">
 </div>
-
-<script src="/javascripts/generate_username.js"></script>
+<div id="success-block">
+</div>
 
 <?php require(base_path("/frontend/views/partials/footer.php")); ?>
