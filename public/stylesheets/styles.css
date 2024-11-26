@@ -1,0 +1,19 @@
+#error-block {
+   border: 1px solid red;
+   border-radius: 5px;
+   color: red;
+   font-size: small;
+   width: max-content;
+   height: max-content;
+   padding: 5px 8px;
+}
+
+#success-block {
+   border: 1px solid purple;
+   border-radius: 5px;
+   color: purple;
+   font-size: small;
+   width: max-content;
+   height: max-content;
+   padding: 5px 8px;
+}
