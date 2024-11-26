@@ -7,8 +7,11 @@ CREATE TABLE threads (
     userId INT NOT NULL,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     editedAt TIMESTAMP DEFAULT NULL,
-    status ENUM('closed', 'open') DEFAULT 'open',
+    status ENUM('closed', 'open', 'archived', 'pinned') DEFAULT 'open',  -- Added more status options
     deleted TINYINT(1) DEFAULT 0,
+    viewsCount INT DEFAULT 0,  -- Field for tracking views
+    upvoteCount INT DEFAULT 0,  -- Field for upvotes
+    downvoteCount INT DEFAULT 0,  -- Field for downvotes
     INDEX idx_user_status (userId, status),
     INDEX idx_created_at (createdAt),
     CONSTRAINT fk_user FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE

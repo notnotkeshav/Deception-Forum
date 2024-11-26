@@ -1,22 +1,23 @@
 CREATE TABLE USERS (
     ID INT AUTO_INCREMENT PRIMARY KEY,
-    profilePic VARCHAR(255),  -- Stores fileuploadId, you can adjust size as needed
-    email varchar(255) NOT NULL UNIQUE,
+    profilePic VARCHAR(255),  -- File URL path for the profile picture
+    email VARCHAR(255) NOT NULL UNIQUE,
     username VARCHAR(25) NOT NULL UNIQUE,
-    name varchar(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
     passwordHash VARCHAR(255) NOT NULL,
     loginURL VARCHAR(15) NOT NULL,
     accessLevel TINYINT(2) NOT NULL,  -- Range 1-12
     lastLogin TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     status ENUM('active', 'banned', 'restricted') NOT NULL DEFAULT 'active',
-    reputationPoint ENUM('newbie', 'expert', 'intermediate') NOT NULL DEFAULT 'newbie',
+    reputation INT DEFAULT 0,  -- Changed from ENUM to INT for reputation score
     strikeCount INT DEFAULT 0,
     upgrades ENUM('VIP', 'PRO', 'ELITE') DEFAULT NULL,
     credits DECIMAL(10,2) DEFAULT 0.00,
     timezone VARCHAR(50) DEFAULT 'UTC',
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deleted TINYINT (2) DEFAULT 0
+    isDeleted TINYINT(2) DEFAULT 0  -- Renamed from deleted to isDeleted
 );
+
 
 CREATE TABLE PASSWORDS (
     id INT AUTO_INCREMENT PRIMARY KEY,
