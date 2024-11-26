@@ -29,7 +29,8 @@ class Database
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_PERSISTENT => true,
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_TIMEOUT => 5 // Set a timeout in seconds
+                PDO::ATTR_TIMEOUT => 5, // Set a timeout in seconds,
+                PDO::ATTR_EMULATE_PREPARES => false
             ]);
             $this->connections[] = $pdo; // Store the connection in the pool
             return $pdo;
@@ -64,5 +65,34 @@ class Database
     public function getAll($statement)
     {
         return $statement->fetchAll();
+    }
+
+    public function lastInsertId(): string
+    {
+        $connection = $this->getConnection();
+        return $connection->lastInsertId();
+    }
+
+    public function rowCount($statement): int
+    {
+        return $statement->rowCount();
+    }
+
+    public function beginTransaction(): void
+    {
+        $connection = $this->getConnection();
+        $connection->beginTransaction();
+    }
+
+    public function commit(): void
+    {
+        $connection = $this->getConnection();
+        $connection->commit();
+    }
+
+    public function rollBack(): void
+    {
+        $connection = $this->getConnection();
+        $connection->rollBack();
     }
 }

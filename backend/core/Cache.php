@@ -34,6 +34,16 @@ class Cache
         file_put_contents($filePath, serialize($data));
     }
 
+    public function delete($key)
+    {
+        $filePath = $this->cacheDir . md5($key) . '.cache';
+        if (file_exists($filePath)) {
+            unlink($filePath);
+            return true;
+        }
+        return false;
+    }
+
     public function clearExpired()
     {
         foreach (glob($this->cacheDir . '*.cache') as $file) {
