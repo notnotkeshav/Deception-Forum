@@ -1,5 +1,5 @@
-// const API_BASE_URL = ''; 
-token = sessionStorage.getItem('token');
+const API_BASE_URL = ''; 
+let token = sessionStorage.getItem('token');
 
 $(document).ready(() => {
    /**
@@ -7,7 +7,13 @@ $(document).ready(() => {
     */
    const handleAjaxError = (xhr, status, error) => {
       console.error(`[${status}] AJAX Error:`, error);
-      $('#error-block').text('An unexpected error occurred. Please try again.');
+      if (xhr.status === 401) {
+         $('#error-block').text('Unauthorized access. Please log in.');
+         sessionStorage.removeItem('token'); // Clear the token on unauthorized access
+         setTimeout(() => window.location.href = '/signin', 2000); // Redirect to login page
+      } else {
+         $('#error-block').text(xhr.responseJSON?.error || 'An unexpected error occurred. Please try again.');
+      }
    };
 
    /**
@@ -37,12 +43,10 @@ $(document).ready(() => {
    /**
     * Create Thread submission
     */
-   $('#createThread').on('submit', (event) => {
+   $('#createThread').on('submit', function (event) {
       event.preventDefault();
 
-      const formData = $(event.currentTarget).serialize();
-      console.log(formData);
-
+      const formData = $(this).serialize();
       sendRequest(
          `${API_BASE_URL}/threads`,
          'POST',
@@ -52,10 +56,6 @@ $(document).ready(() => {
             if (response.success) {
                $('#success-block').text('Redirecting to threads...');
                setTimeout(() => (window.location.href = `/threads`), 2000);
-               // console.log('Redirect suppressed for debugging.');
-               // console.log(response);
-            } else {
-               $('#error-block').text(response.error || 'Failed to create thread.');
             }
          }
       );
@@ -64,7 +64,7 @@ $(document).ready(() => {
    /**
     * Edit Thread submission
     */
-   $('#editThread').on('submit', (event) => {
+   $('#editThread').on('submit', function (event) {
       event.preventDefault();
 
       const threadId = $('#threadId').val();
@@ -97,9 +97,30 @@ $(document).ready(() => {
          'application/json',
          (response) => {
             if (response.success) {
-               window.location.href = `/thread?id=${threadId}`;
+               $('#success-block').text('Refreshing to thread...');
+               setTimeout(() => (window.location.href = `/thread?id=${threadId}`), 2000);
             } else {
                $('#error-block').text(response.error || 'Failed to update thread.');
+            }
+         }
+      );
+   });
+
+   /**
+    * Delete Thread submission
+    */
+   $('#deleteThread').on('click', function () {
+      const threadId = $('#threadId').val();
+
+      sendRequest(
+         `${API_BASE_URL}/thread?id=${threadId}`,
+         'DELETE',
+         null,
+         'application/json',
+         (response) => {
+            if (response.success) {
+               $('#success-block').text('Redirecting to threads...');
+               setTimeout(() => (window.location.href = `/threads`), 2000);
             }
          }
       );

@@ -10,7 +10,8 @@
 
    <div>
       <label for="content">Content:</label>
-      <textarea id="content" name="content" required></textarea>
+      <div id="contentEditor" style="height: 200px; width:50%;"></div>
+      <input type="hidden" id="content" name="content">
    </div>
 
    <div>
@@ -21,7 +22,7 @@
    <div id="imageUrlFields">
       <label for="imageUrl[]">Image URL:</label>
       <input type="text" name="imageUrl[]" class="imageUrl">
-      <button type="button" class="removeImageUrl">Delete</button>
+      <button type="button" class="removeImageUrl" hidden>Delete</button>
    </div>
 
    <button type="button" id="addImageUrl">Add Another Image URL</button>
@@ -30,10 +31,29 @@
 </form>
 
 <div id="error-block">
-   <?= $error['msg'] ?? null ?>
+   <?= isset($error['msg']) ? $error['msg'] : ''; ?>
 </div>
 
+<link href="/public/stylesheets/quill.snow.css" rel="stylesheet">
+<script src="/public/javascripts/quill.min.js"></script>
 <script>
+   var quill = new Quill('#contentEditor', {
+      theme: 'snow',
+      modules: {
+         toolbar: [
+            [{ 'header':[2,3] }],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            ['bold', 'italic', 'underline'],
+            ['link'],
+         ]
+      }
+   });
+
+   document.getElementById('createThread').addEventListener('submit', function() {
+      var content = quill.root.innerHTML;
+      document.getElementById('content').value = content;
+   });
+
    document.getElementById('addImageUrl').addEventListener('click', function() {
       const imageUrlFields = document.getElementById('imageUrlFields');
       const newImageUrlField = document.createElement('div');
@@ -59,10 +79,12 @@
       imageUrlFields.appendChild(newImageUrlField);
    });
 
-   document.querySelector('.removeImageUrl').addEventListener('click', function() {
-      const imageUrlFields = document.getElementById('imageUrlFields');
-      const imageUrlField = this.parentNode;
-      imageUrlFields.removeChild(imageUrlField);
+   document.querySelectorAll('.removeImageUrl').forEach(button => {
+      button.addEventListener('click', function() {
+         const imageUrlFields = document.getElementById('imageUrlFields');
+         const imageUrlField = this.parentNode;
+         imageUrlFields.removeChild(imageUrlField);
+      });
    });
 </script>
 

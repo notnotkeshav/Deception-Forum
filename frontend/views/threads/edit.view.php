@@ -4,25 +4,22 @@
 
 <form id="editThread">
    <input type="hidden" id="threadId" value="<?= htmlspecialchars($thread['id']) ?>" />
-   <!-- Title Field -->
    <div>
       <label for="title">Title:</label>
       <input type="text" id="title" name="title" value="<?= htmlspecialchars($thread['title']) ?>" required>
    </div>
 
-   <!-- Content Field -->
    <div>
       <label for="content">Content:</label>
-      <textarea id="content" name="content" required><?= htmlspecialchars($thread['content']) ?></textarea>
+      <div id="contentEditor" style="height: 200px; width:50%;"></div>
+      <input type="hidden" id="content" name="content">
    </div>
 
-   <!-- Category Field -->
    <div>
       <label for="category">Category:</label>
       <input type="text" id="category" name="category" value="<?= htmlspecialchars($thread['category_name']) ?>" required>
    </div>
 
-   <!-- Image URL Fields -->
    <div id="imageUrlFields">
       <label for="imageUrl[]">Image URL:</label>
       <?php if (!empty($thread['images'])): ?>
@@ -40,10 +37,8 @@
       <?php endif; ?>
    </div>
 
-   <!-- Button to Add More Image URL Fields -->
    <button type="button" id="addImageUrl">Add Another Image URL</button>
 
-   <!-- Submit Button -->
    <button type="submit">Save Changes</button>
 </form>
 
@@ -51,7 +46,32 @@
    <?= $error['msg'] ?? null ?>
 </div>
 
+
+<link href="/public/stylesheets/quill.snow.css" rel="stylesheet">
+<script src="/public/javascripts/quill.min.js"></script>
 <script>
+   var quill = new Quill('#contentEditor', {
+      theme: 'snow',
+      modules: {
+         toolbar: [
+            [{ 'header':[2,3, false] }],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            ['bold', 'italic', 'underline'],
+            ['link'],
+         ]
+      }
+   });
+
+   document.addEventListener('DOMContentLoaded', function() {
+      const existingContent = <?= json_encode($thread['content']); ?>;
+      quill.root.innerHTML = existingContent;
+   });
+
+   document.getElementById('editThread').addEventListener('submit', function() {
+      var content = quill.root.innerHTML;
+      document.getElementById('content').value = content;
+   });
+
    // JavaScript to dynamically add and remove image URL input fields
    document.getElementById('addImageUrl').addEventListener('click', function() {
       let imageUrlFields = document.getElementById('imageUrlFields');
