@@ -8,15 +8,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
          unset($_SESSION['token']);
          unset($_SESSION['token_expiration']);
 
-         echo json_encode(['message' => 'Successfully logged out.', 'server' => $_SERVER]);
+         // 200 OK: Successfully logged out
+         http_response_code(200);
+         echo json_encode(['message' => 'Successfully logged out.']);
       } else {
-         echo json_encode(['error' => 'Invalid token or session expired.', 'server' => $_SERVER]);
+         // 401 Unauthorized: Invalid token or session expired
+         http_response_code(401);
+         echo json_encode(['error' => 'Invalid token or session expired.']);
       }
    } else {
-      echo json_encode(['error' => 'Authorization token missing.', 'server' => $_SERVER]);
+      // 400 Bad Request: Authorization token missing
+      http_response_code(400);
+      echo json_encode(['error' => 'Authorization token missing.']);
    }
    exit();
 } else {
-   echo json_encode(['error' => 'Invalid request method.', 'server' => $_SERVER]);
+   // 405 Method Not Allowed: Invalid request method
+   http_response_code(405);
+   echo json_encode(['error' => 'Invalid request method.']);
    exit();
 }

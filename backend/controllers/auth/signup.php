@@ -26,20 +26,38 @@ if ($method === 'GET') {
 } else {
    $params = getQueryParams();
    $cache->clearExpired();
-   $inviteCode = $cache->get("invitecode:" . $params['invite']);
+   $cachedInviteCode = $cache->get("invitecode:" . $params['invite']);
 
-   if (!$inviteCode) {
+   if (!$cachedInviteCode || !is_array($cachedInviteCode)) {
+      // Invite code is not found in cache or is not in the expected format
       $stmt = $db->query("SELECT * FROM invitecodes WHERE code = :code AND used = 0", [":code" => $params['invite']]);
       $inviteCode = $db->getOne($stmt);
+
       if ($inviteCode) {
          $cache->set("invitecode:" . $params['invite'], $inviteCode);
       } else {
-         echo json_encode(["success" => false, "error" => "Invalid Invite Code: " . $params['invite']]);
+         http_response_code(404); // Not Found: Invite code is invalid
+         echo json_encode([
+            "success" => false,
+            "error" => "Invalid Invite Code: " . $params['invite']
+         ]);
          exit();
       }
+   } else {
+      if ($cachedInviteCode['value']['used'] == 1) {
+         http_response_code(410); // Gone: Invite code has already been used
+         echo json_encode([
+            "success" => false,
+            "error" => "Invite Code has already been used: " . $params['invite']
+         ]);
+         exit();
+      }
+      // Use the cached invite code
+      $inviteCode = $cachedInviteCode['value']['code'];
    }
 
    if (!Validator::email($_POST['email'])) {
+      http_response_code(400); // Bad Request: Invalid email format
       echo json_encode(["success" => false, "error" => "Invalid Email"]);
       exit();
    }
@@ -58,31 +76,32 @@ if ($method === 'GET') {
          $errorMessages[] = "Password and confirmation do not match (or are not reversed).";
       }
 
-      $errorResponse = [
+      http_response_code(400); // Bad Request: Password validation failed
+      echo json_encode([
          "success" => false,
-         "error" => "Password does not match the security level",
+         "error" => "Password does not meet security requirements",
          "messages" => $errorMessages
-      ];
-
-      echo json_encode($errorResponse);
+      ]);
       exit();
    }
 
    $cachedUser = $cache->get("user:email:" . $_POST['email']);
    if ($cachedUser) {
+      http_response_code(409); // Conflict: User already exists
       echo json_encode(["success" => false, "error" => "User already exists"]);
       exit();
    }
 
-   $stmt = $db->query("SELECT username FROM users WHERE email = :email", [":email" => $_POST['email']]);
+   $stmt = $db->query("SELECT username FROM users WHERE email = :email and isDeleted = 0", [":email" => $_POST['email']]);
    $user = $db->getOne($stmt);
    if (!empty($user)) {
       $cache->set("user:email:" . $_POST['email'], $user);
+      http_response_code(409); // Conflict: User already exists
       echo json_encode(["success" => false, "error" => "User already exists"]);
       exit();
    } else {
       $hashedPassword = password_hash($_POST['password'], PASSWORD_BCRYPT);
-      $loginurl = generateLoginUrl();
+      $generatedCode = generateLoginUrl();
       $db->beginTransaction();
 
       $db->query("INSERT INTO users (email, username, passwordHash, name, loginUrl, accessLevel, timezone) VALUES (:email, :username, :password, :name, :loginUrl, :access_level, :timezone)", [
@@ -90,7 +109,7 @@ if ($method === 'GET') {
          ":username" => $_POST['username'],
          ":password" => $hashedPassword,
          ":name" => $_POST['name'],
-         ":loginUrl" => $loginurl,
+         ":loginUrl" => $generatedCode,
          ":access_level" => 1,
          ":timezone" => $_POST['timezone'] ?? "UTC"
       ]);
@@ -103,7 +122,7 @@ if ($method === 'GET') {
 
       $db->query("UPDATE invitecodes SET used = 1, usedBy = :userId WHERE code = :inviteCode", [
          ":userId" => $lastUserId,
-         ":inviteCode" => $inviteCode['value']['code'] ?? $inviteCode['code']
+         ":inviteCode" => $inviteCode ?? $inviteCode['code']
       ]);
 
       $updatedInviteCode = [
@@ -111,14 +130,17 @@ if ($method === 'GET') {
          'used' => 1,
          'usedBy' => $lastUserId
       ];
+      $cache->delete("invitecode:" . $params['invite']);
       $cache->set("invitecode:" . $params['invite'], $updatedInviteCode);
       $db->commit();
 
-      $loginurl = $_SERVER['HTTP_HOST'] . "/signin?code=" . $loginurl;
-      // Will be mailed later to user's email
+      $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+      $loginurl = $protocol . "://" . $_SERVER['HTTP_HOST'] . "/signin?code=" . $generatedCode;
+      http_response_code(201); // Created: User registration successful
       echo json_encode([
          "success" => true,
          "loginurl" => $loginurl,
+         $inviteCode
       ]);
       exit();
    }

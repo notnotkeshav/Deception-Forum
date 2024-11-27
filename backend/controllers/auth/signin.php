@@ -29,8 +29,9 @@ if ($method === 'GET') {
          $cache->set("loginurl:" . $params['code'], $loginCode);
          $cache->set("user:loginurl:" . $params['code'], $user);
       } else {
+         http_response_code(404); // Not Found
          echo json_encode([
-            'error' => "Invalid Login Code:- {$params['code']}"
+            'error' => "Invalid Login Code: {$params['code']}",
          ]);
          exit();
       }
@@ -46,11 +47,13 @@ if ($method === 'GET') {
    $lockoutTime = $cache->get($lockoutKey)['value'] ?? null;
    if ($lockoutTime && $lockoutTime > $currentTime) {
       $remainingLockout = ceil(($lockoutTime - $currentTime) / 60);
+      http_response_code(429); // Too Many Requests
       echo json_encode(['error' => "Account locked due to multiple failed login attempts. Please try again after $remainingLockout minutes."]);
       exit();
    }
 
    if (!Validator::email($_POST['email'])) {
+      http_response_code(400); // Bad Request
       echo json_encode(['error' => "Invalid Email"]);
       exit();
    }
@@ -64,8 +67,9 @@ if ($method === 'GET') {
       $cache->set($suspiciousIPKey, $suspiciousIPs);
 
       if (count($suspiciousIPs) >= $maxSuspiciousAttempts) {
+         http_response_code(403); // Forbidden
          echo json_encode(['error' => "Your account has been flagged for suspicious activity. Please contact support."]);
-         // Logic for suspending account. sending mail for regenerate new password and strike.
+         // Logic for suspending account, sending mail for regenerate new password, and strike.
          exit();
       }
    }
@@ -83,6 +87,7 @@ if ($method === 'GET') {
          $_SESSION['token_expiration'] = $expiresAt;
          $_SESSION['userId'] = $user['value']['ID'];
 
+         http_response_code(200); // OK
          echo json_encode([
             'session' => $_SESSION,
          ]);
@@ -118,19 +123,23 @@ if ($method === 'GET') {
          $cache->set($lockoutsKey, $lockouts);
 
          if ($lockouts > $maxLockouts) {
+            http_response_code(423); // Locked
             echo json_encode(['error' => "Your account has been locked due to repeated login failures. You will need to reset your password."]);
             // send mail for password reset and reason for this lockout.
             exit();
          }
 
+         http_response_code(429); // Too Many Requests
          echo json_encode(['error' => "Account locked due to multiple failed login attempts. Please try again in 15 minutes."]);
          exit();
       }
 
+      http_response_code(401); // Unauthorized
       echo json_encode(['error' => "Either email or password is incorrect. Attempt: $failedAttempts"]);
       exit();
    } else {
-      echo json_encode(['error' => "Either email or password is incorrect."]);
+      http_response_code(401); // Unauthorized
+      echo json_encode(['error' => "Login URL does not match with entered email. Try again"]);
       exit();
    }
 }
