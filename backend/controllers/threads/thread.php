@@ -7,6 +7,8 @@ $cache = App::container()->resolve('Core\Cache');
 
 $params = getQueryParams();
 if (!isset($params['id'])) {
+   // 404 Not Found: Thread Id not found
+   http_response_code(404);
    view("errors/404.php", [
       "msg" => "Thread Id Not found"
    ]);
@@ -22,11 +24,9 @@ if ($method === 'GET') {
       $thread = $cachedThread['value'];
    } else {
       $stmt = $db->query("SELECT t.*, 
-                                 c.id AS comment_id, c.content AS comment_content, c.userId AS comment_userId, c.editedAt AS comment_edited_at, c.createdAt AS comment_created_at, c.deleted AS comment_deleted,
                                  cat.id AS category_id, cat.name AS category_name,
                                  img.id AS image_id, img.imageUrl AS image_url
                             FROM threads t
-                            LEFT JOIN comments c ON t.id = c.threadId AND c.deleted = 0
                             LEFT JOIN thread_category_link tcl ON t.id = tcl.threadId
                             LEFT JOIN categories cat ON tcl.categoryId = cat.id
                             LEFT JOIN thread_images img ON t.id = img.threadId
@@ -41,27 +41,17 @@ if ($method === 'GET') {
             'userId' => $threadData[0]['userId'],
             'createdAt' => $threadData[0]['createdAt'],
             'editedAt' => $threadData[0]['editedAt'],
+            'viewsCount' => $threadData[0]['viewsCount'],
+            'upvoteCount' => $threadData[0]['upvoteCount'],
+            'downvoteCount' => $threadData[0]['downvoteCount'],
             'comments' => [],
             'category' => null,
             'images' => []
          ];
 
-         $commentIds = [];
          $imageIds = [];
 
          foreach ($threadData as $row) {
-            if ($row['comment_id'] && !in_array($row['comment_id'], $commentIds)) {
-               $thread['comments'][] = [
-                  'id' => $row['comment_id'],
-                  'content' => $row['comment_content'],
-                  'userId' => $row['comment_userId'],
-                  'createdAt' => $row['comment_created_at'],
-                  'editedAt' => $row['comment_edited_at'],
-                  'deleted' => $row['comment_deleted'],
-               ];
-               $commentIds[] = $row['comment_id'];
-            }
-
             if ($row['category_id'] && !$thread['category']) {
                $thread['category'] = [
                   'id' => $row['category_id'],
@@ -80,11 +70,15 @@ if ($method === 'GET') {
 
          $cache->set("thread:" . $threadId, $thread);
       } else {
+         // 404 Not Found: No thread found with the provided ID
+         http_response_code(404);
          echo json_encode(["success" => false, "error" => "No thread found with the provided ID."]);
          exit();
       }
    }
 
+   // 200 OK: Successfully retrieved the thread
+   http_response_code(200);
    view("threads/one.view.php", [
       "heading" => "Single Thread",
       "thread" => $thread
@@ -99,10 +93,16 @@ if ($method === 'GET') {
    $cache->delete($cacheKey);
 
    if ($db->rowCount($stmt) !== 0) {
+      // 200 OK: Successfully deleted the thread
+      http_response_code(200);
       echo json_encode(["success" => true, "message" => "Thread deleted successfully."]);
    } else {
+      // 403 Forbidden: Access Denied
+      http_response_code(403);
       echo json_encode(["success" => false, "message" => "Access Denied"]);
    }
 } else {
+   // 405 Method Not Allowed: Invalid HTTP method
+   http_response_code(405);
    echo json_encode(["success" => false, "error" => "Invalid HTTP method."]);
 }

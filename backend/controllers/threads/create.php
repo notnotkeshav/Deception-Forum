@@ -19,13 +19,15 @@ if ($method === "GET") {
    $cache->clearExpired();
    $cachedThread = $cache->get('thread:' . $title);
    if ($cachedThread) {
+      http_response_code(409); // Conflict
       echo json_encode(['success' => false, 'error' => "Someone just created a thread with the same name."]);
       exit();
    }
 
    if (empty($title) || empty($content) || empty($category)) {
+      http_response_code(400); // Bad Request
       echo json_encode(
-         ['success' => false, $title, $content, $category, 'error' => "All fields are required."],
+         ['success' => false, $title, $content, $category, 'error' => "All fields are required."]
       );
       exit();
    }
@@ -66,7 +68,6 @@ if ($method === "GET") {
          ':categoryId' => $categoryId
       ]);
 
-
       if (!empty($imageUrls)) {
          foreach ($imageUrls as $imageUrl) {
             if (!empty($imageUrl)) {
@@ -82,9 +83,11 @@ if ($method === "GET") {
       $db->commit();
       $cache->set('thread:' . $title, $title);
 
+      http_response_code(201); // Created
       echo json_encode(['success' => true, 'message' => "Thread created successfully.", "categoryId" => $categoryId, "cachedCategory" => $cachedCategory]);
    } catch (Exception $e) {
       $db->rollBack();
+      http_response_code(500); // Internal Server Error
       echo json_encode(['success' => false, 'error' => "$e", "categoryId" => $categoryId, "cachedCategory" => $cachedCategory]);
    }
 }

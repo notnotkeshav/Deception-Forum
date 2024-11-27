@@ -7,6 +7,8 @@ $cache = App::container()->resolve('Core\Cache');
 
 $params = getQueryParams();
 if (!isset($params['id'])) {
+   // 404 Not Found: Thread Id not found
+   http_response_code(404);
    view("errors/404.php", [
       "msg" => "Thread Id Not found"
    ]);
@@ -33,8 +35,9 @@ if ($method === 'GET') {
    $rows = $db->getAll($stmt);
 
    if (empty($rows)) {
-      echo json_encode(["success" => false, "error" => "Thread not found or deleted."]);
+      // 404 Not Found: Thread not found or deleted
       http_response_code(404);
+      echo json_encode(["success" => false, "error" => "Thread not found or deleted."]);
       exit();
    }
    $thread = [
@@ -48,11 +51,14 @@ if ($method === 'GET') {
    ];
 
    if ($_SESSION['userId'] !== $thread['userId']) {
-      echo json_encode(["success" => false, "error" => "Forbidden. You do not have permission to edit this thread."]);
+      // 403 Forbidden: User does not have permission to edit this thread
       http_response_code(403);
+      echo json_encode(["success" => false, "error" => "Forbidden. You do not have permission to edit this thread."]);
       exit();
    }
 
+   // 200 OK: Successfully fetched the thread data
+   http_response_code(200);
    view("threads/edit.view.php", [
       "heading" => "Edit Thread",
       "thread" => $thread,
@@ -61,10 +67,12 @@ if ($method === 'GET') {
    $data = json_decode(file_get_contents('php://input'), true);
 
    if (!$data['title'] || !$data['content']) {
-      echo json_encode(["success" => false, "error" => "Title and content are required."]);
+      // 400 Bad Request: Title and content are required
       http_response_code(400);
+      echo json_encode(["success" => false, "error" => "Title and content are required."]);
       exit();
    }
+
    $stmt = $db->query(
       "SELECT userId FROM threads WHERE id = :id AND deleted = 0",
       [":id" => $threadId]
@@ -72,14 +80,16 @@ if ($method === 'GET') {
    $existingThread = $db->getOne($stmt);
 
    if (!$existingThread) {
-      echo json_encode(["success" => false, "error" => "Thread not found or deleted."]);
+      // 404 Not Found: Thread not found or deleted
       http_response_code(404);
+      echo json_encode(["success" => false, "error" => "Thread not found or deleted."]);
       exit();
    }
 
    if ($_SESSION['userId'] !== $existingThread['userId']) {
-      echo json_encode(["success" => false, "error" => "Forbidden. You do not have permission to edit this thread."]);
+      // 403 Forbidden: User does not have permission to edit this thread
       http_response_code(403);
+      echo json_encode(["success" => false, "error" => "Forbidden. You do not have permission to edit this thread."]);
       exit();
    }
 
@@ -96,7 +106,7 @@ if ($method === 'GET') {
       $categoryName = $data['category'];
       $stmt = $db->query("SELECT id FROM categories WHERE name = :name LIMIT 1", [":name" => $categoryName]);
       $existingCategory = $db->getOne($stmt);
-  
+
       if ($existingCategory) {
           $categoryId = $existingCategory['id'];
       } else {
@@ -106,13 +116,12 @@ if ($method === 'GET') {
       }
 
       $db->query("DELETE FROM thread_category_link WHERE threadId = :threadId", [":threadId" => $threadId]);
-  
+
       $db->query(
           "INSERT INTO thread_category_link (threadId, categoryId) VALUES (:threadId, :categoryId)",
           [":threadId" => $threadId, ":categoryId" => $categoryId]
       );
-  }
-  
+   }
 
    if (isset($data['images'])) {
       $db->query("DELETE FROM thread_images WHERE threadId = :threadId", [":threadId" => $threadId]);
@@ -127,6 +136,7 @@ if ($method === 'GET') {
 
    $cache->delete("thread:$threadId");
 
-   echo json_encode(["success" => true, "message" => "Thread updated successfully."]);
+   // 200 OK: Successfully updated the thread
    http_response_code(200);
+   echo json_encode(["success" => true, "message" => "Thread updated successfully."]);
 }
