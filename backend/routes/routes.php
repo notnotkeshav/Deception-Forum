@@ -19,13 +19,20 @@ $router->get("/thread/edit", "threads/edit.php")->only('auth');
 $router->put("/thread", "threads/edit.php")->only('auth');
 $router->delete("/thread", "threads/thread.php")->only('auth');
 // Comment Routes
-$router->get("/comments", "threads/comment.php")->only('auth');
-$router->post("/comment", "threads/comment.php")->only('auth');
-$router->put("/comment", "threads/comment.php")->only('auth');
-$router->delete("/comment", "threads/comment.php")->only('auth');
-$router->get("/comments/replies", "threads/comment.php")->only('auth');
-$router->post("/comment/vote", "threads/comment.php")->only('auth');
+$router->get("/comments", "comments/comment.php")->only('auth');
+$router->post("/comment", "comments/create.php")->only('auth');
+$router->put("/comment/edit", "comments/edit.php")->only('auth');
+$router->delete("/comment", "comments/comment.php")->only('auth');
+$router->get("/comments/replies", "comments/reply.php")->only('auth');
+$router->post("/comments/reply", "comments/reply.php")->only('auth');
+$router->put("/comment/upvote", "comments/vote.php")->only('auth');
+$router->put("/comment/downvote", "comments/vote.php")->only('auth');
 // Notification Routes
 $router->get("/notifications", "notifications/all.php")->only('auth');
 $router->post("/notifications/subscribe", "notifications/subscribe.php")->only('auth');
 $router->post("/notifications/unsubscribe", "notifications/unsubscribe.php")->only('auth');
+// Moderator Locking Comments Routes
+// Private Message Routes
+// Group Message Routes
+// Credit Maintaining Routes
+// User Profiles Routes
