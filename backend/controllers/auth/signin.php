@@ -23,7 +23,7 @@ if ($method === 'GET') {
    $loginCode = $cache->get("loginurl:" . $params['code']);
 
    if (!$loginCode) {
-      $stmt = $db->query("SELECT * FROM users WHERE loginurl = :code ", [":code" => $params['code']]);
+      $stmt = $db->query("SELECT * FROM users WHERE loginurl = :code AND isDeleted = 0", [":code" => $params['code']]);
       $user = $db->getOne($stmt);
       if ($user && isset($user['loginURL'])) {
          $cache->set("loginurl:" . $params['code'], $loginCode);
@@ -90,6 +90,7 @@ if ($method === 'GET') {
          http_response_code(200); // OK
          echo json_encode([
             'session' => $_SESSION,
+            'user' => $user
          ]);
          exit();
       }

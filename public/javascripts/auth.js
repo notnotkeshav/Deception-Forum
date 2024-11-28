@@ -34,6 +34,8 @@ $(function () {
          success(response) {
             if (response.message) {
                sessionStorage.removeItem('token');
+               sessionStorage.removeItem('userId');
+               sessionStorage.removeItem('user');
                window.location.href = '/signin';
             }
          },
@@ -67,7 +69,11 @@ $(function () {
          success(response) {
             if (response.session) {
                sessionStorage.setItem('token', response.session.token);
-               window.location.href = '/';
+               sessionStorage.setItem('userId', response.session.userId);
+               sessionStorage.setItem('user', response.user);
+               setTimeout(() => {
+                  window.location.href = '/';
+               }, 2000);
             }
          },
          error(xhr) {
