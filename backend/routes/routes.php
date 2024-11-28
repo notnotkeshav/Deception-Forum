@@ -23,8 +23,6 @@ $router->get("/comments", "comments/comment.php")->only('auth');
 $router->post("/comment", "comments/create.php")->only('auth');
 $router->put("/comment/edit", "comments/edit.php")->only('auth');
 $router->delete("/comment", "comments/comment.php")->only('auth');
-$router->get("/comments/replies", "comments/reply.php")->only('auth');
-$router->post("/comments/reply", "comments/reply.php")->only('auth');
 $router->put("/comment/upvote", "comments/vote.php")->only('auth');
 $router->put("/comment/downvote", "comments/vote.php")->only('auth');
 // Notification Routes
