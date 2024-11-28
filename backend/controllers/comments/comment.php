@@ -19,16 +19,30 @@ if ($method === 'GET') {
     $threadId = $params['threadId'];
 
     // Fetch comments from database
-    $stmt = $db->query("SELECT * FROM comments WHERE threadId = :threadId AND deleted = 0 ORDER BY createdAt DESC", [":threadId" => $threadId]);
+    $stmt = $db->query("SELECT * FROM comments WHERE threadId = :threadId AND deleted = 0 AND parentCommentId IS NULL ORDER BY createdAt DESC", [":threadId" => $threadId]);
     $comments = $db->getAll($stmt);
+
+    function getReplies($parentId, $db)
+    {
+        $stmt = $db->query("SELECT * FROM comments WHERE parentCommentId = :parentCommentId AND deleted = 0 ORDER BY createdAt DESC", [":parentCommentId" => $parentId]);
+        $replies = $db->getAll($stmt);
+        foreach ($replies as &$reply) {
+            $reply['replies'] = getReplies($reply['id'], $db);
+        }
+        return $replies;
+    }
+
+    foreach ($comments as &$comment) {
+        $comment['replies'] = getReplies($comment['id'], $db);
+    }
 
     echo json_encode(["success" => true, "comments" => $comments]);
     exit();
-}  elseif ($method === 'DELETE') {
+} elseif ($method === 'DELETE') {
     // Handle comment deletion (soft delete)
     if (!isset($body['commentId'])) {
         http_response_code(400);
-        echo json_encode(["success" => false, "error" => "Comment ID is required.", 'body'=>$body]);
+        echo json_encode(["success" => false, "error" => "Comment ID is required.", 'body' => $body]);
         exit();
     }
 
