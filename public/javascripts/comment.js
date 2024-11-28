@@ -1,55 +1,93 @@
 $(document).ready(function () {
+   const showEditReplyForm = (commentId, content = '') => {
+      $('#edit-reply-comment-id').val(commentId);
+      editReplyQuill.root.innerHTML = content;
+      $('#edit-reply-section').show();
+   };
 
-   // Handle the comment submission form
-   $('#comment-form').on('submit', function (event) {
-      event.preventDefault();
+   $('#edit-reply-cancel').click(() => {
+      $('#edit-reply-section').hide();
+      $('#edit-reply-comment-id').val('');
+      editReplyQuill.root.innerHTML = '';
+   });
 
-      // Capture the form data using JQuery
-      const formData = $(this).serialize();
+   $('#edit-reply-form').on('submit', function (e) {
+      e.preventDefault();
+      const commentId = $('#edit-reply-comment-id').val();
+      const content = editReplyQuill.root.innerHTML;
 
       $.ajax({
-         url: '/comment',
-         method: 'POST',
-         data: formData,
-         success: function (data) {
-            if (data.success) {
-               const newComment = data.comment;
-               const commentList = $('#comments-list');
-               const newCommentHTML = `
-                  <li id="comment-${newComment.id}">
-                      <strong>User ID ${newComment.userId}</strong>
-                      <p><strong>Commented at:</strong> ${newComment.createdAt}</p>
-                      <p>${newComment.content}</p>
-                      <button class="edit-btn" data-comment-id="${newComment.id}">Edit</button>
-                      <button class="delete-btn" data-comment-id="${newComment.id}">Delete</button>
-                  </li>`;
-
-               // Append new comment to the list
-               commentList.append(newCommentHTML);
-
-               // Re-attach edit and delete handlers to the new comment
-               $(`#comment-${newComment.id} .edit-btn`).on('click', function () {
-                  const commentId = $(this).data('comment-id');
-                  const newContent = prompt('Edit your comment:', '');
-                  if (newContent !== null && newContent !== '') {
-                     handleEditComment(commentId, newContent);
-                  }
-               });
-
-               $(`#comment-${newComment.id} .delete-btn`).on('click', function () {
-                  const commentId = $(this).data('comment-id');
-                  handleDeleteComment(commentId);
-               });
-
-            } else {
-               alert(data.error);
-            }
+         url: '/comment/edit',
+         method: 'PUT',
+         data: {
+            commentId: commentId,
+            content: content,
          },
-         error: function (xhr, status, error) {
-            console.error(`Error: ${status} - ${error}`);
-            alert('An error occurred while submitting your comment.');
-         }
+         success: () => {
+            $('#edit-reply-section').hide();
+            loadComments();
+         },
+         error: () => alert('Failed to edit the comment.'),
       });
    });
 
+   $(document).on('click', '.edit-btn', function () {
+      const commentId = $(this).data('comment-id');
+      const content = $(this).data('content');
+      showEditReplyForm(commentId, content);
+   });
+
+
+   $(document).on('click', '.reply-btn', function () {
+      const commentId = $(this).data('comment-id');
+      showEditReplyForm(commentId);
+   });
+
+   $(document).on('click', '.delete-btn', function () {
+      const commentId = $(this).data('comment-id'); // Extract comment ID
+      console.log(`Attempting to delete comment ID: ${commentId}`);
+
+      if (confirm('Are you sure you want to delete this comment?')) {
+         $.ajax({
+            url: '/comment',
+            method: 'DELETE',
+            contentType: 'application/json',
+            dataType: 'json',
+            data: JSON.stringify({ commentId }),
+            success: function (response) {
+               if (response.success) {
+                  loadComments();
+               } else {
+                  console.error('Error from server:', response.error);
+               }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+               console.error('AJAX error:', textStatus, errorThrown);
+            },
+         });
+      }
+   });
+
+
+   $(document).on('click', '.upvote-btn', function () {
+      const commentId = $(this).data('comment-id');
+      $.ajax({
+         url: '/comment/upvote',
+         method: 'PUT',
+         data: { commentId: commentId },
+         success: loadComments,
+         error: () => alert('Failed to upvote comment.'),
+      });
+   });
+
+   $(document).on('click', '.downvote-btn', function () {
+      const commentId = $(this).data('comment-id');
+      $.ajax({
+         url: '/comment/downvote',
+         method: 'PUT',
+         data: { commentId: commentId },
+         success: loadComments,
+         error: () => alert('Failed to downvote comment.'),
+      });
+   });
 });
