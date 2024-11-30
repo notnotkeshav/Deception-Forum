@@ -35,8 +35,8 @@ if ($method === 'PUT') {
     $newLockStatus = $thread['locked'] ? 0 : 1;
 
     $stmt = $db->query(
-        "UPDATE threads SET locked = :locked, lockedBy = :userId WHERE id = :id", 
-        [":locked" => $newLockStatus,":userId"=>$_SESSION['userId'], ":id" => $body['threadId']]
+        "UPDATE threads SET locked = :locked WHERE id = :id", 
+        [":locked" => $newLockStatus, ":id" => $body['threadId']]
     );
 
     if ($stmt) {
