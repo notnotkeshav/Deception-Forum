@@ -70,7 +70,7 @@ $(function () {
             if (response.session) {
                sessionStorage.setItem('token', response.session.token);
                sessionStorage.setItem('userId', response.session.userId);
-               sessionStorage.setItem('user', response.user);
+               sessionStorage.setItem('user', JSON.stringify(response.session.user));
                setTimeout(() => {
                   window.location.href = '/';
                }, 2000);

@@ -86,11 +86,11 @@ if ($method === 'GET') {
          $_SESSION['token'] = $token;
          $_SESSION['token_expiration'] = $expiresAt;
          $_SESSION['userId'] = $user['value']['ID'];
+         $_SESSION['user'] = $user['value'];
 
          http_response_code(200); // OK
          echo json_encode([
-            'session' => $_SESSION,
-            'user' => $user
+            'session' => $_SESSION
          ]);
          exit();
       }
