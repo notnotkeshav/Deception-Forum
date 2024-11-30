@@ -17,6 +17,17 @@ CREATE TABLE comments (
     CONSTRAINT fk_comment_parent FOREIGN KEY (parentCommentId) REFERENCES comments(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE comment_votes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    comment_id INT NOT NULL,
+    user_id INT NOT NULL,
+    vote_type ENUM('upvote', 'downvote') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_vote (comment_id, user_id), -- Ensures one vote per user per comment
+    FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE, -- Maintain referential integrity
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE -- (Assumes a users table exists)
+);
+
 CREATE TABLE notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     userId INT NOT NULL,

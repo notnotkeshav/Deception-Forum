@@ -23,6 +23,8 @@ $(document).ready(function () {
       },
    });
 
+   const currentUserId = sessionStorage.getItem('userId');
+
    const loadComments = () => {
       const threadId = $('#threadId').val();
 
@@ -38,44 +40,9 @@ $(document).ready(function () {
          success: (response) => {
             if (response.success) {
                const comments = response.comments;
-               const commentList = $('#comments-list');
-               commentList.empty();
-               const currentUserId = sessionStorage.getItem('userId');
+               sessionStorage.setItem(`comments-thread-${threadId}`, JSON.stringify(comments));
 
-               const renderComment = (comment, level = 0) => {
-                  const sanitizedContent = DOMPurify.sanitize(comment.content);
-                  const isAuthorized = currentUserId === comment.userId.toString();
-
-                  let commentHTML = `
-                     <li id="comment-${comment.id}" style="margin-left: ${level * 20}px;">
-                         <p><strong>User ID ${comment.userId} Commented at:</strong> ${comment.createdAt}</p>
-                         <div>${sanitizedContent}</div>
-                         <p>Upvotes: <span class="upvotes">${comment.upvoteCount}</span>, Downvotes: <span class="downvotes">${comment.downvoteCount}</span></p>
-                         ${isAuthorized ? `
-                           <button class="edit-btn" data-comment-id="${comment.id}" data-comment="${sanitizedContent}">Edit</button>
-                           <button class="delete-btn" data-comment-id="${comment.id}">Delete</button>
-                         ` : ''}
-                         <button class="reply-btn" data-comment-id="${comment.id}">Reply</button>
-                         <button class="upvote-btn" data-comment-id="${comment.id}">Upvote</button>
-                         <button class="downvote-btn" data-comment-id="${comment.id}">Downvote</button>
-                  `;
-
-                  if (comment.replies && comment.replies.length > 0) {
-                     commentHTML += '<ul class="replies-list">';
-                     comment.replies.forEach((reply) => {
-                        commentHTML += renderComment(reply, level + 1);
-                     });
-                     commentHTML += '</ul>';
-                  }
-
-                  commentHTML += '</li>';
-                  return commentHTML;
-               };
-
-               comments.forEach((comment) => {
-                  const commentHTML = renderComment(comment);
-                  commentList.append(commentHTML);
-               });
+               renderComments(comments);
             } else {
                console.error('Failed to load comments.');
             }
@@ -85,6 +52,99 @@ $(document).ready(function () {
          },
       });
    };
+
+   const findCommentById = (comments, commentId) => {
+      for (let comment of comments) {
+         if (comment.id === commentId) {
+            return comment;
+         }
+         if (comment.replies && comment.replies.length > 0) {
+            const found = findCommentById(comment.replies, commentId);
+            if (found) {
+               return found;
+            }
+         }
+      }
+      return null;
+   };
+
+   const renderComments = (comments) => {
+      const commentList = $('#comments-list');
+      commentList.empty();
+
+      comments.forEach((comment) => {
+         const commentHTML = renderComment(comment);
+         commentList.append(commentHTML);
+      });
+   };
+
+   const renderComment = (comment, level = 0) => {
+      const sanitizedContent = DOMPurify.sanitize(comment.content);
+      const isAuthorized = currentUserId === comment.userId.toString();
+
+      let commentHTML = `
+         <li id="comment-${comment.id}" style="margin-left: ${level * 20}px;">
+             <p><strong>User ID ${comment.userId} Commented at:</strong> ${comment.createdAt}</p>
+             <div>${sanitizedContent}</div>
+             <p>Upvotes: <span class="upvotes">${comment.upvoteCount}</span>, Downvotes: <span class="downvotes">${comment.downvoteCount}</span></p>
+             ${isAuthorized ? `
+               <button class="edit-btn" data-comment-id="${comment.id}" data-comment="${sanitizedContent}">Edit</button>
+               <button class="delete-btn" data-comment-id="${comment.id}">Delete</button>
+             ` : ''}
+             <button class="reply-btn" data-comment-id="${comment.id}">Reply</button>
+             <button class="upvote-btn" data-comment-id="${comment.id}">Upvote</button>
+             <button class="downvote-btn" data-comment-id="${comment.id}">Downvote</button>
+      `;
+
+      if (comment.replies && comment.replies.length > 0) {
+         commentHTML += `
+            <button class="show-replies-btn" data-comment-id="${comment.id}" data-level="${level + 1}" data-loaded="false">
+               Show Replies (${comment.replies.length})
+            </button>
+            <ul class="replies-list" id="replies-for-${comment.id}" style="display: none;"></ul>
+         `;
+      }
+
+      commentHTML += '</li>';
+      return commentHTML;
+   };
+
+   $(document).on('click', '.show-replies-btn', function () {
+      const commentId = $(this).data('comment-id');
+      const level = $(this).data('level');
+      const loaded = $(this).data('loaded');
+      const repliesList = $(`#replies-for-${commentId}`);
+      const threadId = $('#threadId').val();
+
+      const allComments = JSON.parse(sessionStorage.getItem(`comments-thread-${threadId}`));
+      const parentComment = findCommentById(allComments, commentId);
+
+      if (!parentComment) {
+         console.error('Parent comment not found in storage.');
+         return;
+      }
+
+      if (!loaded) {
+         const replies = parentComment.replies || [];
+         replies.forEach((reply) => {
+            const replyHTML = renderComment(reply, level);
+            repliesList.append(replyHTML);
+         });
+
+         $(this).data('loaded', true);
+         repliesList.show();
+         $(this).text('Hide Replies');
+      } else {
+         if (repliesList.is(':visible')) {
+            repliesList.hide();
+            $(this).text(`Show Replies (${repliesList.children().length})`);
+         } else {
+            repliesList.show();
+            $(this).text('Hide Replies');
+         }
+      }
+   });
+
 
    $(document).on('click', '.delete-btn', function () {
       const commentId = $(this).data('comment-id');
@@ -212,6 +272,53 @@ $(document).ready(function () {
       $('#editCommentId').val('');
       editCommentQuill.root.innerHTML = '';
    });
+
+   $(document).on('click', '.upvote-btn', function () {
+      const commentId = $(this).data('comment-id');
+      handleVote(commentId, 'upvote');
+   });
+
+   $(document).on('click', '.downvote-btn', function () {
+      const commentId = $(this).data('comment-id');
+      handleVote(commentId, 'downvote');
+   });
+
+   const handleVote = (commentId, voteType) => {
+      const userId = sessionStorage.getItem('userId');
+
+      if (!userId) {
+         alert("You must be logged in to vote.");
+         return;
+      }
+
+      $.ajax({
+         url: '/comment/vote',
+         method: 'PUT',
+         contentType: 'application/json',
+         dataType: 'json',
+         data: JSON.stringify({
+            action:'vote',
+            commentId: commentId,
+            voteType: voteType,
+            userId: userId,
+         }),
+         success: (response) => {
+            if (response.success) {
+               const commentEl = $(`#comment-${commentId}`);
+               commentEl.find('.upvotes').text(response.updatedUpvotes);
+               commentEl.find('.downvotes').text(response.updatedDownvotes);
+
+               console.log(response.message);
+            } else {
+               console.error('Vote failed:', response.error);
+            }
+         },
+         error: (xhr, status, error) => {
+            console.error(`AJAX Error: ${status}, ${error}`);
+         },
+      });
+   };
+
 
    loadComments();
 });
