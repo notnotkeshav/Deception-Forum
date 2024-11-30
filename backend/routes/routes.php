@@ -18,6 +18,7 @@ $router->get("/thread", "threads/thread.php")->only('auth');
 $router->get("/thread/edit", "threads/edit.php")->only('auth');
 $router->put("/thread", "threads/edit.php")->only('auth');
 $router->delete("/thread", "threads/thread.php")->only('auth');
+$router->put("/thread/vote", "threads/vote.php")->only('auth');
 // Comment Routes
 $router->get("/comments", "comments/comment.php")->only('auth');
 $router->post("/comment", "comments/create.php")->only('auth');

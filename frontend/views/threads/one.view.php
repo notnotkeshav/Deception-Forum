@@ -2,9 +2,35 @@
 <?php require(base_path("/frontend/views/partials/navbar.php")); ?>
 
 <div id="thread-container"
-   data-thread-id="<?php echo htmlspecialchars($thread['id']);  ?>"
+   data-thread-id="<?php echo htmlspecialchars($thread['id']); ?>"
    data-thread-locked="<?php echo htmlspecialchars($thread['locked']); ?>">
+
    <h1><?php echo htmlspecialchars($thread['title']); ?></h1>
+
+   <div class="thread-votes" id="thread-<?php echo $thread['id']; ?>">
+      <button
+         id="upvote-thread"
+         data-thread-id="<?php echo $thread['id']; ?>"
+         class="btn btn-sm btn-primary"
+         <?php if ($thread['locked'] == 1) echo 'disabled'; ?>>
+         👍 Upvote
+      </button>
+      <span class="vote-count upvotes">
+         <?php echo htmlspecialchars($thread['upvoteCount']); ?>
+      </span>
+
+      <button
+         id="downvote-thread"
+         data-thread-id="<?php echo $thread['id']; ?>"
+         class="btn btn-sm btn-secondary"
+         <?php if ($thread['locked'] == 1) echo 'disabled'; ?>>
+         👎 Downvote
+      </button>
+      <span class="vote-count downvotes">
+         <?php echo htmlspecialchars($thread['downvoteCount']); ?>
+      </span>
+   </div>
+
 
    <?php if ($_SESSION['userId'] == $thread['userId']) : ?>
       <?php if (!$thread['locked']): ?>

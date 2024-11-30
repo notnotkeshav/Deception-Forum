@@ -1,4 +1,4 @@
-const API_BASE_URL = ''; 
+const API_BASE_URL = '';
 let token = sessionStorage.getItem('token');
 
 $(document).ready(() => {
@@ -125,4 +125,49 @@ $(document).ready(() => {
          }
       );
    });
+
+   /**
+    * Vote Thread submission
+    */
+   $(document).on('click', '#upvote-thread', function () {
+      const threadId = $(this).data('thread-id');
+      handleVote(threadId, 'upvote');
+   });
+
+   $(document).on('click', '#downvote-thread', function () {
+      const threadId = $(this).data('thread-id');
+      handleVote(threadId, 'downvote');
+   });
+
+   const handleVote = (threadId, voteType) => {
+      const userId = sessionStorage.getItem('userId');
+
+      if (!userId) {
+         alert("You must be logged in to vote.");
+         return;
+      }
+
+      sendRequest(
+         '/thread/vote',
+         'PUT',
+         JSON.stringify({
+            action: 'vote',
+            threadId,
+            voteType,
+            userId,
+         }),
+         'application/json',
+         (response) => {
+            if (response.success) {
+               const threadEl = $(`#thread-${threadId}`);
+               threadEl.find('.upvotes').text(response.updatedUpvotes);
+               threadEl.find('.downvotes').text(response.updatedDownvotes);
+            } else {
+               alert(response.error || 'Vote failed.');
+               console.error('Vote failed:', response.error);
+            }
+         }
+      );
+   };
+
 });

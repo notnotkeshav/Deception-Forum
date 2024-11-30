@@ -40,6 +40,16 @@ CREATE TABLE thread_images (
     INDEX idx_thread (threadId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE thread_votes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    thread_id INT,
+    user_id INT,
+    vote_type ENUM('upvote', 'downvote'),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_vote (thread_id, user_id),
+    FOREIGN KEY (thread_id) REFERENCES threads(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 
 ALTER TABLE threads 
 ADD COLUMN locked TINYINT(1) DEFAULT 0 AFTER status;
