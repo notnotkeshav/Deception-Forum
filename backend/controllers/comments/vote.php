@@ -44,7 +44,7 @@ if ($method === 'PUT' && isset($body['action']) && $body['action'] === 'vote') {
     try {
         $db->beginTransaction();
         $db->query(
-            "CALL UpdateVoteAndGetCounts(:commentId, :voteType, :userId)",
+            "CALL UpdateCommentVotesAndGetCounts(:commentId, :voteType, :userId)",
             [
                 ":commentId" => $commentId, 
                 ":voteType" => $voteType, 
