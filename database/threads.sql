@@ -39,3 +39,9 @@ CREATE TABLE thread_images (
     CONSTRAINT fk_thread_img FOREIGN KEY (threadId) REFERENCES threads(id) ON DELETE CASCADE,
     INDEX idx_thread (threadId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+ALTER TABLE threads 
+ADD COLUMN locked TINYINT(1) DEFAULT 0 AFTER status;
+ADD COLUMN lockedBy INT DEFAULT NULL AFTER locked, -- Adding the 'lockedBy' field
+ADD CONSTRAINT fk_lockedBy FOREIGN KEY (lockedBy) REFERENCES users(id);
