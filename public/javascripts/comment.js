@@ -1,32 +1,36 @@
 $(document).ready(function () {
-   const createReplyQuill = new Quill('#createReplyEditor', {
-      theme: 'snow',
-      modules: {
-         toolbar: [
-            [{ header: [2, 3, false] }],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            ['bold', 'italic', 'underline'],
-            ['link'],
-         ],
-      },
-   });
-
-   const editCommentQuill = new Quill('#editCommentEditor', {
-      theme: 'snow',
-      modules: {
-         toolbar: [
-            [{ header: [2, 3, false] }],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            ['bold', 'italic', 'underline'],
-            ['link'],
-         ],
-      },
-   });
-
    const currentUserId = sessionStorage.getItem('userId');
+   let createReplyQuill, editCommentQuill;
+   if (document.getElementById('createReplyEditor')) {
+      createReplyQuill = new Quill('#createReplyEditor', {
+         theme: 'snow',
+         modules: {
+            toolbar: [
+               [{ header: [2, 3, false] }],
+               [{ list: 'ordered' }, { list: 'bullet' }],
+               ['bold', 'italic', 'underline'],
+               ['link'],
+            ],
+         },
+      });
+   }
+
+   if (document.getElementById('editCommentEditor')) {
+      editCommentQuill = new Quill('#editCommentEditor', {
+         theme: 'snow',
+         modules: {
+            toolbar: [
+               [{ header: [2, 3, false] }],
+               [{ list: 'ordered' }, { list: 'bullet' }],
+               ['bold', 'italic', 'underline'],
+               ['link'],
+            ],
+         },
+      });
+   }
 
    const loadComments = () => {
-      const threadId = $('#threadId').val();
+      const threadId = $('#thread-container').data('thread-id');
 
       if (!threadId) {
          console.error('Thread ID not found.');
@@ -81,20 +85,27 @@ $(document).ready(function () {
    const renderComment = (comment, level = 0) => {
       const sanitizedContent = DOMPurify.sanitize(comment.content);
       const isAuthorized = currentUserId === comment.userId.toString();
+      const locked = $('#thread-container').data('thread-locked');
 
       let commentHTML = `
          <li id="comment-${comment.id}" style="margin-left: ${level * 20}px;">
              <p><strong>User ID ${comment.userId} Commented at:</strong> ${comment.createdAt}</p>
              <div>${sanitizedContent}</div>
              <p>Upvotes: <span class="upvotes">${comment.upvoteCount}</span>, Downvotes: <span class="downvotes">${comment.downvoteCount}</span></p>
-             ${isAuthorized ? `
+             ${isAuthorized && !locked ? `
                <button class="edit-btn" data-comment-id="${comment.id}" data-comment="${sanitizedContent}">Edit</button>
                <button class="delete-btn" data-comment-id="${comment.id}">Delete</button>
-             ` : ''}
-             <button class="reply-btn" data-comment-id="${comment.id}">Reply</button>
-             <button class="upvote-btn" data-comment-id="${comment.id}">Upvote</button>
-             <button class="downvote-btn" data-comment-id="${comment.id}">Downvote</button>
-      `;
+            ` : ''}
+            ${!locked ? `
+               <button class="reply-btn" data-comment-id="${comment.id}">Reply</button>
+               <button class="upvote-btn" data-comment-id="${comment.id}">Upvote</button>
+               <button class="downvote-btn" data-comment-id="${comment.id}">Downvote</button>
+            ` : `
+               <button disabled class="reply-btn">Reply</button>
+               <button disabled class="upvote-btn">Upvote</button>
+               <button disabled class="downvote-btn">Downvote</button>
+            `}
+         `;
 
       if (comment.replies && comment.replies.length > 0) {
          commentHTML += `
@@ -114,7 +125,7 @@ $(document).ready(function () {
       const level = $(this).data('level');
       const loaded = $(this).data('loaded');
       const repliesList = $(`#replies-for-${commentId}`);
-      const threadId = $('#threadId').val();
+      const threadId = $('#thread-container').data('thread-id');
 
       const allComments = JSON.parse(sessionStorage.getItem(`comments-thread-${threadId}`));
       const parentComment = findCommentById(allComments, commentId);
@@ -173,7 +184,7 @@ $(document).ready(function () {
    $('#create-reply-form').on('submit', function (e) {
       e.preventDefault();
 
-      const threadId = $('#threadId').val();
+      const threadId = $('#thread-container').data('thread-id');
       const parentCommentId = $('#parentCommentId').val() || null;
       const comment = createReplyQuill.root.innerHTML;
 
@@ -297,7 +308,7 @@ $(document).ready(function () {
          contentType: 'application/json',
          dataType: 'json',
          data: JSON.stringify({
-            action:'vote',
+            action: 'vote',
             commentId: commentId,
             voteType: voteType,
             userId: userId,
@@ -307,8 +318,6 @@ $(document).ready(function () {
                const commentEl = $(`#comment-${commentId}`);
                commentEl.find('.upvotes').text(response.updatedUpvotes);
                commentEl.find('.downvotes').text(response.updatedDownvotes);
-
-               console.log(response.message);
             } else {
                console.error('Vote failed:', response.error);
             }

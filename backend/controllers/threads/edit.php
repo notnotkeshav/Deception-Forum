@@ -74,7 +74,7 @@ if ($method === 'GET') {
    }
 
    $stmt = $db->query(
-      "SELECT userId FROM threads WHERE id = :id AND deleted = 0",
+      "SELECT userId, locked FROM threads WHERE id = :id AND deleted = 0",
       [":id" => $threadId]
    );
    $existingThread = $db->getOne($stmt);
@@ -85,6 +85,13 @@ if ($method === 'GET') {
       echo json_encode(["success" => false, "error" => "Thread not found or deleted."]);
       exit();
    }
+
+   if ($existingThread['locked']) {
+      // 403 Forbidden: Thread is locked
+      http_response_code(403);
+      echo json_encode(["success" => false, "error" => "This thread is locked and cannot be modified."]);
+      exit();
+  }
 
    if ($_SESSION['userId'] !== $existingThread['userId']) {
       // 403 Forbidden: User does not have permission to edit this thread

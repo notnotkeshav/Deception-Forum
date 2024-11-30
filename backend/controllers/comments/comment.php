@@ -58,7 +58,18 @@ if ($method === 'GET') {
         exit();
     }
 
-    if ($existingComment['userId'] !== $userId) {
+    $stmt = $db->query("SELECT locked FROM threads WHERE id = :threadId", [":threadId" => $existingComment['threadId']]);
+    $thread = $db->getOne($stmt);
+
+    if ($thread && $thread['locked'] == 1) {
+        if ($_SESSION['userId'] !== $existingComment['userId'] && !isAdmin($_SESSION['userId'])) {
+            http_response_code(403);
+            echo json_encode(["success" => false, "error" => "You cannot delete comments on a locked thread."]);
+            exit();
+        }
+    }
+
+    if ($existingComment['userId'] !== $userId && !isAdmin($userId)) {
         http_response_code(403);
         echo json_encode(["success" => false, "error" => "You do not have permission to delete this comment."]);
         exit();
@@ -77,4 +88,12 @@ if ($method === 'GET') {
         http_response_code(500);
         echo json_encode(["success" => false, "error" => "Failed to delete comment."]);
     }
+}
+
+function isAdmin($userId)
+{
+    global $db;
+    $stmt = $db->query("SELECT accessLevel FROM users WHERE id = :userId", [":userId" => $userId]);
+    $user = $db->getOne($stmt);
+    return $user && $user['accesslevel'] > 10;
 }

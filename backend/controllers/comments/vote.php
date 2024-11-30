@@ -20,6 +20,21 @@ if ($method === 'PUT' && isset($body['action']) && $body['action'] === 'vote') {
     $voteType = $body['voteType'];
     $userId = (int)$body['userId'];
 
+    // Check if the thread is locked
+    $stmt = $db->query(
+        "SELECT t.locked FROM comments c
+         JOIN threads t ON c.threadId = t.id
+         WHERE c.id = :id AND c.deleted = 0",
+        [":id" => $commentId]
+    );
+    $thread = $db->getOne($stmt);
+
+    if ($thread && $thread['locked'] == 1) {
+        http_response_code(403);
+        echo json_encode(["success" => false, "error" => "Thread is locked. You cannot vote on comments."]);
+        exit();
+    }
+
     if (!in_array($voteType, ['upvote', 'downvote'])) {
         http_response_code(400);
         echo json_encode(["success" => false, "error" => "Invalid vote type."]);

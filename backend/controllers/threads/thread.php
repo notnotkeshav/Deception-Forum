@@ -23,15 +23,17 @@ if ($method === 'GET') {
    if ($cachedThread) {
       $thread = $cachedThread['value'];
    } else {
-      $stmt = $db->query("SELECT t.*, 
-                                 cat.id AS category_id, cat.name AS category_name,
-                                 img.id AS image_id, img.imageUrl AS image_url
-                            FROM threads t
-                            LEFT JOIN thread_category_link tcl ON t.id = tcl.threadId
-                            LEFT JOIN categories cat ON tcl.categoryId = cat.id
-                            LEFT JOIN thread_images img ON t.id = img.threadId
-                            WHERE t.id = :id AND t.deleted = 0
-                        ", [":id" => $threadId]);
+      $stmt = $db->query(
+         "SELECT t.*, 
+                 cat.id AS category_id, cat.name AS category_name,
+                 img.id AS image_id, img.imageUrl AS image_url
+          FROM threads t
+          LEFT JOIN thread_category_link tcl ON t.id = tcl.threadId
+          LEFT JOIN categories cat ON tcl.categoryId = cat.id
+          LEFT JOIN thread_images img ON t.id = img.threadId
+          WHERE t.id = :id AND t.deleted = 0",
+         [":id" => $threadId]
+      );
       $threadData = $db->getAll($stmt);
       if ($threadData) {
          $thread = [
@@ -39,6 +41,7 @@ if ($method === 'GET') {
             'title' => $threadData[0]['title'],
             'content' => $threadData[0]['content'],
             'userId' => $threadData[0]['userId'],
+            'locked' => $threadData[0]['locked'],
             'createdAt' => $threadData[0]['createdAt'],
             'editedAt' => $threadData[0]['editedAt'],
             'viewsCount' => $threadData[0]['viewsCount'],
@@ -84,10 +87,40 @@ if ($method === 'GET') {
       "thread" => $thread
    ]);
 } elseif ($method === 'DELETE') {
-   $stmt = $db->query("UPDATE threads SET deleted = 1 WHERE id = :id and userId = :userId", [
-      ":id" => $threadId,
-      ":userId" => $_SESSION['userId']
-   ]);
+   $stmt = $db->query(
+      "SELECT locked, userId FROM threads WHERE id = :id AND deleted = 0",
+      [":id" => $threadId]
+   );
+   $existingThread = $db->getOne($stmt);
+
+   if (!$existingThread) {
+      // 404 Not Found: Thread not found or already deleted
+      http_response_code(404);
+      echo json_encode(["success" => false, "message" => "Thread not found or already deleted."]);
+      exit();
+   }
+
+   if ($existingThread['locked']) {
+      // 403 Forbidden: Thread is locked
+      http_response_code(403);
+      echo json_encode(["success" => false, "message" => "This thread is locked and cannot be deleted."]);
+      exit();
+   }
+
+   if ($existingThread['userId'] !== $_SESSION['userId']) {
+      // 403 Forbidden: Access Denied
+      http_response_code(403);
+      echo json_encode(["success" => false, "message" => "Access Denied"]);
+      exit();
+   }
+
+   $stmt = $db->query(
+      "UPDATE threads SET deleted = 1 WHERE id = :id AND userId = :userId",
+      [
+         ":id" => $threadId,
+         ":userId" => $_SESSION['userId']
+      ]
+   );
 
    $cacheKey = "thread:" . $threadId;
    $cache->delete($cacheKey);
