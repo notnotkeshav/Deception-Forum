@@ -3,8 +3,7 @@
 
 <div id="thread-container"
    data-thread-id="<?php echo htmlspecialchars($thread['id']);  ?>"
-   data-thread-locked="<?php echo htmlspecialchars($thread['locked']); ?>"
-   >
+   data-thread-locked="<?php echo htmlspecialchars($thread['locked']); ?>">
    <h1><?php echo htmlspecialchars($thread['title']); ?></h1>
 
    <?php if ($_SESSION['userId'] == $thread['userId']) : ?>
@@ -21,6 +20,15 @@
       <?php else: ?>
          <p><strong>This thread is locked. Editing and deleting are disabled.</strong></p>
       <?php endif; ?>
+   <?php endif; ?>
+
+   <!-- Admin/Moderator Lock/Unlock Button -->
+   <?php if ($_SESSION['user']['accessLevel'] >= 10) : ?>
+      <button id="lock-unlock-btn"
+         data-thread-id="<?php echo $thread['id']; ?>"
+         class="btn btn-large <?php echo $thread['locked'] ? 'btn-danger' : 'btn-success'; ?>">
+         <?php echo $thread['locked'] ? 'Unlock Thread' : 'Lock Thread'; ?>
+      </button>
    <?php endif; ?>
 
    <div class="thread-details">

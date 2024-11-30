@@ -36,3 +36,4 @@
 <link href="/public/stylesheets/quill.snow.css" rel="stylesheet">
 <script src="/public/javascripts/quill.min.js"></script>
 <script src="/public/javascripts/comment.js"></script>
+<script src="/public/javascripts/moderator.js"></script>

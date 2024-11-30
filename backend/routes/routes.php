@@ -28,7 +28,8 @@ $router->put("/comment/vote", "comments/vote.php")->only('auth');
 $router->get("/notifications", "notifications/all.php")->only('auth');
 $router->post("/notifications/subscribe", "notifications/subscribe.php")->only('auth');
 $router->post("/notifications/unsubscribe", "notifications/unsubscribe.php")->only('auth');
-// Moderator Locking Comments Routes
+// Moderator Locking Routes
+$router->put("/thread/lock", "moderators/lock.php")->only('admin');
 // Private Message Routes
 // Group Message Routes
 // Credit Maintaining Routes
