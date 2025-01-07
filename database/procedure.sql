@@ -1,30 +1,28 @@
--- PROCEDURE #1
-
 DELIMITER //
 
 CREATE PROCEDURE UpdateCommentVotesAndGetCounts(
-    IN commentId INT,
-    IN voteType VARCHAR(10),
-    IN userId INT
+    IN commentId CHAR(36),
+    IN voteType ENUM('upvote', 'downvote'),
+    IN userId CHAR(36)
 )
 BEGIN
-    DECLARE existing_vote_id INT;
-    DECLARE existing_vote_type VARCHAR(10);
+    DECLARE existingVoteId CHAR(36);
+    DECLARE existingVoteType ENUM('upvote', 'downvote');
 
     -- Check if the user has already voted
-    SELECT id, vote_type INTO existing_vote_id, existing_vote_type
+    SELECT id, vote_type INTO existingVoteId, existingVoteType
     FROM comment_votes 
     WHERE comment_id = commentId AND user_id = userId;
 
-    IF existing_vote_id IS NOT NULL THEN
+    IF existingVoteId IS NOT NULL THEN
         -- If the vote is the same as the new vote, remove it
-        IF existing_vote_type = voteType THEN
-            DELETE FROM comment_votes WHERE id = existing_vote_id;
+        IF existingVoteType = voteType THEN
+            DELETE FROM comment_votes WHERE id = existingVoteId;
         ELSE
             -- Update the vote to the new type
             UPDATE comment_votes 
             SET vote_type = voteType 
-            WHERE id = existing_vote_id;
+            WHERE id = existingVoteId;
         END IF;
     ELSE
         -- Insert a new vote if no existing vote
@@ -33,17 +31,10 @@ BEGIN
     END IF;
 
     -- Update the counts in comments table
-    IF voteType = 'upvote' THEN
-        UPDATE comments
-        SET upvoteCount = (SELECT COUNT(*) FROM comment_votes WHERE comment_id = commentId AND vote_type = 'upvote'),
-            downvoteCount = (SELECT COUNT(*) FROM comment_votes WHERE comment_id = commentId AND vote_type = 'downvote')
-        WHERE id = commentId;
-    ELSEIF voteType = 'downvote' THEN
-        UPDATE comments
-        SET upvoteCount = (SELECT COUNT(*) FROM comment_votes WHERE comment_id = commentId AND vote_type = 'upvote'),
-            downvoteCount = (SELECT COUNT(*) FROM comment_votes WHERE comment_id = commentId AND vote_type = 'downvote')
-        WHERE id = commentId;
-    END IF;
+    UPDATE comments
+    SET upvoteCount = (SELECT COUNT(*) FROM comment_votes WHERE comment_id = commentId AND vote_type = 'upvote'),
+        downvoteCount = (SELECT COUNT(*) FROM comment_votes WHERE comment_id = commentId AND vote_type = 'downvote')
+    WHERE id = commentId;
 
     -- Return the updated counts
     SELECT upvoteCount, downvoteCount
@@ -53,33 +44,31 @@ END //
 
 DELIMITER ;
 
--- PROCEDURE #2
-
 DELIMITER //
 
 CREATE PROCEDURE UpdateThreadVotesAndGetCounts(
-    IN threadId INT,
-    IN voteType VARCHAR(10),
-    IN userId INT
+    IN threadId CHAR(36),
+    IN voteType ENUM('upvote', 'downvote'),
+    IN userId CHAR(36)
 )
 BEGIN
-    DECLARE existing_vote_id INT;
-    DECLARE existing_vote_type VARCHAR(10);
+    DECLARE existingVoteId CHAR(36);
+    DECLARE existingVoteType ENUM('upvote', 'downvote');
 
     -- Check if the user has already voted
-    SELECT id, vote_type INTO existing_vote_id, existing_vote_type
+    SELECT id, vote_type INTO existingVoteId, existingVoteType
     FROM thread_votes 
     WHERE thread_id = threadId AND user_id = userId;
 
-    IF existing_vote_id IS NOT NULL THEN
+    IF existingVoteId IS NOT NULL THEN
         -- If the vote is the same as the new vote, remove it
-        IF existing_vote_type = voteType THEN
-            DELETE FROM thread_votes WHERE id = existing_vote_id;
+        IF existingVoteType = voteType THEN
+            DELETE FROM thread_votes WHERE id = existingVoteId;
         ELSE
             -- Update the vote to the new type
             UPDATE thread_votes 
             SET vote_type = voteType 
-            WHERE id = existing_vote_id;
+            WHERE id = existingVoteId;
         END IF;
     ELSE
         -- Insert a new vote if no existing vote
@@ -87,18 +76,11 @@ BEGIN
         VALUES (threadId, userId, voteType);
     END IF;
 
-    -- Update the counts in thread table
-    IF voteType = 'upvote' THEN
-        UPDATE threads
-        SET upvoteCount = (SELECT COUNT(*) FROM thread_votes WHERE thread_id = threadId AND vote_type = 'upvote'),
-            downvoteCount = (SELECT COUNT(*) FROM thread_votes WHERE thread_id = threadId AND vote_type = 'downvote')
-        WHERE id = threadId;
-    ELSEIF voteType = 'downvote' THEN
-        UPDATE threads
-        SET upvoteCount = (SELECT COUNT(*) FROM thread_votes WHERE thread_id = threadId AND vote_type = 'upvote'),
-            downvoteCount = (SELECT COUNT(*) FROM thread_votes WHERE thread_id = threadId AND vote_type = 'downvote')
-        WHERE id = threadId;
-    END IF;
+    -- Update the counts in threads table
+    UPDATE threads
+    SET upvoteCount = (SELECT COUNT(*) FROM thread_votes WHERE thread_id = threadId AND vote_type = 'upvote'),
+        downvoteCount = (SELECT COUNT(*) FROM thread_votes WHERE thread_id = threadId AND vote_type = 'downvote')
+    WHERE id = threadId;
 
     -- Return the updated counts
     SELECT upvoteCount, downvoteCount

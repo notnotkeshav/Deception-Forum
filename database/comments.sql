@@ -1,43 +1,49 @@
 CREATE TABLE comments (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    threadId INT NOT NULL,
-    userId INT NOT NULL,
+    id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
+    threadId CHAR(36) NOT NULL,
+    userId CHAR(36) NOT NULL,
     content TEXT NOT NULL,
-    parentCommentId INT DEFAULT NULL,  -- NULL for top-level comments, references `id` for replies
+    parentCommentId CHAR(36) DEFAULT NULL,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     editedAt TIMESTAMP DEFAULT NULL,
     status ENUM('approved', 'flagged') DEFAULT 'approved',
-    upvoteCount INT DEFAULT 0,  -- Upvote count
-    downvoteCount INT DEFAULT 0,  -- Downvote count
-    deleted TINYINT(1) DEFAULT 0,
-    INDEX idx_thread_user (threadId, userId),
-    INDEX idx_parent_comment (parentCommentId),
-    CONSTRAINT fk_comment_thread FOREIGN KEY (threadId) REFERENCES threads(id) ON DELETE CASCADE,
-    CONSTRAINT fk_comment_user FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_comment_parent FOREIGN KEY (parentCommentId) REFERENCES comments(id) ON DELETE CASCADE
+    upvoteCount INT DEFAULT 0,
+    downvoteCount INT DEFAULT 0,
+    isDeleted BOOLEAN DEFAULT FALSE,
+    INDEX idxThreadUser (threadId, userId),
+    INDEX idxParentComment (parentCommentId),
+    FOREIGN KEY (threadId) REFERENCES threads(id) ON DELETE CASCADE,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (parentCommentId) REFERENCES comments(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE comment_votes (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    comment_id INT NOT NULL,
-    user_id INT NOT NULL,
-    vote_type ENUM('upvote', 'downvote') NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_vote (comment_id, user_id), -- Ensures one vote per user per comment
-    FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE, -- Maintain referential integrity
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE -- (Assumes a users table exists)
+CREATE TABLE commentVotes (
+    id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
+    commentId CHAR(36) NOT NULL,
+    userId CHAR(36) NOT NULL,
+    voteType ENUM('upvote', 'downvote') NOT NULL,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniqueVote (commentId, userId),
+    FOREIGN KEY (commentId) REFERENCES comments(id) ON DELETE CASCADE,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE notifications (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    userId INT NOT NULL,
-    categoryId INT DEFAULT NULL,
-    threadId INT DEFAULT NULL,
-    eventType ENUM('new_thread', 'new_comment', 'thread_update', 'reply_to_comment') NOT NULL,  -- Event type for flexibility
-    read TINYINT(1) DEFAULT 0,
+    id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
+    userId CHAR(36) NOT NULL,
+    categoryId CHAR(36) DEFAULT NULL,
+    threadId CHAR(36) DEFAULT NULL,
+    eventType ENUM('new_thread', 'new_comment', 'thread_update', 'reply_to_comment') NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    link VARCHAR(255) DEFAULT NULL,
+    isRead BOOLEAN DEFAULT FALSE,
+    priority ENUM('low', 'medium', 'high') DEFAULT 'medium',
+    source ENUM('user', 'system', 'admin') DEFAULT 'user',
+    expiresAt TIMESTAMP DEFAULT NULL,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_subscription_user FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_subscription_category FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE CASCADE,
-    CONSTRAINT fk_subscription_thread FOREIGN KEY (threadId) REFERENCES threads(id) ON DELETE CASCADE,
-    UNIQUE KEY uniq_user_subscription (userId, categoryId, threadId)
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE CASCADE,
+    FOREIGN KEY (threadId) REFERENCES threads(id) ON DELETE CASCADE,
+    UNIQUE KEY uniqueNotification (userId, categoryId, threadId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
