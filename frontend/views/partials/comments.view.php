@@ -5,7 +5,7 @@
       <form id="create-reply-form">
          <input type="hidden" id="parentCommentId" name="parentCommentId">
          <label for="content">Write a comment/reply:
-            <div id="createReplyEditor" style="height: 200px; width: 100%;"></div>
+            <div id="createReplyEditor" style="height: 200px; width: 752px;"></div>
          </label>
          <button type="submit" id="submit-reply">Submit</button>
          <button type="button" id="cancel-reply">Cancel</button>
@@ -20,7 +20,7 @@
       <form id="edit-comment-form">
          <input type="hidden" id="editCommentId" name="editCommentId">
          <label for="content">Edit Comment:
-            <div id="editCommentEditor" style="height: 200px; width: 100%;"></div>
+            <div id="editCommentEditor" style="height: 200px; width: 752px;"></div>
          </label>
          <button type="submit" id="submit-edit">Save Changes</button>
          <button type="button" id="cancel-edit">Cancel</button>

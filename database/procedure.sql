@@ -2,7 +2,7 @@
 
 DELIMITER //
 
-CREATE PROCEDURE updateVoteAndGetCounts(
+CREATE PROCEDURE updateCommentVotesAndGetCounts(
     IN p_commentId CHAR(36),
     IN p_voteType VARCHAR(10),
     IN p_userId CHAR(36)

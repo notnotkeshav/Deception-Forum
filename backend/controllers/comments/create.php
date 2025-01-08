@@ -10,32 +10,28 @@ $body = getRequestBody();
 
 if ($method === 'POST') {
     if (!isset($_POST['threadId'], $_POST['content'])) {
-        http_response_code(400);
-        echo json_encode(["success" => false, "error" => "Thread ID and content are required.", 'body' => $_POST]);
-        exit();
+        sendJsonResponse(false, "Thread ID and content are required", [], 400);
     }
 
     $userId = $_SESSION['userId'];
     $threadId = $_POST['threadId'];
     $content = $_POST['content'];
-    $parentCommentId = isset($_POST['parentCommentId']) && $_POST['parentCommentId'] !== '' 
-        ? $_POST['parentCommentId'] 
+    $parentCommentId = isset($_POST['parentCommentId']) && $_POST['parentCommentId'] !== ''
+        ? $_POST['parentCommentId']
         : null;
 
     // Check if the thread is locked
     $stmt = $db->query("SELECT locked FROM threads WHERE id = :id", [":id" => $threadId]);
     $thread = $db->getOne($stmt);
-    
+
     if ($thread && $thread['locked'] == 1) {
-        http_response_code(403);
-        echo json_encode(["success" => false, "error" => "Thread is locked. You cannot post comments."]);
-        exit();
+        sendJsonResponse(false, "Thread is locked. You cannot post comments", [], 403);
     }
 
     try {
         $stmt = $db->query(
-            "INSERT INTO comments (userId, threadId, content, parentCommentId, createdAt) 
-             VALUES (:userId, :threadId, :content, :parentCommentId, NOW())",
+            "INSERT INTO comments (userId, threadId, content, parentCommentId) 
+             VALUES (:userId, :threadId, :content, :parentCommentId)",
             [
                 ":userId" => $userId,
                 ":threadId" => $threadId,
@@ -47,15 +43,11 @@ if ($method === 'POST') {
         if ($stmt) {
             $commentId = $db->lastInsertId();
             $cache->delete("thread:" . $threadId);
-            http_response_code(200);
-            echo json_encode(["success" => true, 'msg' => 'Comment created']);
-            exit();
+            sendJsonResponse(true, "Comment created");
         } else {
             throw new Exception("Failed to add comment.");
         }
     } catch (Exception $e) {
-        http_response_code(500);
-        echo json_encode(["success" => false, "error" => $e->getMessage()]);
-        exit();
+        sendJsonResponse(false, $e->getMessage(), [], 500);
     }
 }

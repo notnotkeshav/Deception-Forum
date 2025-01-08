@@ -9,54 +9,62 @@ $params = getQueryParams();
 $body = getRequestBody();
 
 if ($method === 'PUT') {
-    if (!$body['commentId'] || !$body['comment']) {
-        // 400 Bad Request: commentId and Comment are required
-        http_response_code(400);
-        echo json_encode(["success" => false, "error" => "commentId and comment are required."]);
-        exit();
+    if (empty($body['commentId']) || empty($body['comment'])) {
+        // 400 Bad Request: commentId and comment are required
+        sendJsonResponse(false, "commentId and comment are required.", [], 400);
     }
 
-    // Check if the thread is locked
-    $stmt = $db->query(
-        "SELECT t.locked FROM comments c
-         JOIN threads t ON c.threadId = t.id
-         WHERE c.id = :id AND c.deleted = 0", 
-        [":id" => $body['commentId']]
-    );
-    $thread = $db->getOne($stmt);
+    try {
+        // Check if the thread is locked
+        $stmt = $db->query(
+            "SELECT t.locked FROM comments c
+             JOIN threads t ON c.threadId = t.id
+             WHERE c.id = :id AND c.isDeleted = 0", 
+            [":id" => $body['commentId']]
+        );
+        $thread = $db->getOne($stmt);
 
-    if ($thread && $thread['locked'] == 1) {
-        http_response_code(403);
-        echo json_encode(["success" => false, "error" => "Thread is locked. You cannot edit comments."]);
-        exit();
+        if ($thread && $thread['locked'] == 1) {
+            // 403 Forbidden: Thread is locked
+            sendJsonResponse(false, "Thread is locked. You cannot edit comments.", [], 403);
+        }
+
+        // Check if the comment exists
+        $stmt = $db->query(
+            "SELECT userId FROM comments WHERE id = :id AND isDeleted = 0",
+            [":id" => $body['commentId']]
+        );
+        $existingComment = $db->getOne($stmt);
+
+        if (!$existingComment) {
+            // 404 Not Found: Comment not found
+            sendJsonResponse(false, "Comment not found or is deleted.", [], 404);
+        }
+
+        // Check if the user has permission to edit the comment
+        if ($_SESSION['userId'] !== $existingComment['userId']) {
+            // 403 Forbidden: User does not have permission
+            sendJsonResponse(false, "Forbidden. You do not have permission to edit this comment.", [], 403);
+        }
+
+        // Update the comment
+        $stmt = $db->query(
+            "UPDATE comments SET content = :content, editedAt = NOW() WHERE id = :commentId",
+            [
+                ":content" => $body['comment'],
+                ":commentId" => $body['commentId']
+            ]
+        );
+
+        if ($stmt) {
+            // 200 OK: Comment updated successfully
+            sendJsonResponse(true, "Comment updated successfully.", [], 200);
+        } else {
+            // 500 Internal Server Error: Update failed
+            sendJsonResponse(false, "Failed to update the comment. Please try again later.", [], 500);
+        }
+    } catch (Exception $e) {
+        // 500 Internal Server Error: Exception occurred
+        sendJsonResponse(false, "An error occurred: " . $e->getMessage(), [], 500);
     }
-
-    $stmt = $db->query(
-        "SELECT userId FROM comments where id = :id AND deleted = 0",
-        [":id" => $body['commentId']]
-    );
-    $existingComment =  $db->getOne($stmt);
-
-    if (!$existingComment) {
-        http_response_code(404);
-        echo json_encode(["success" => false, "error" => "Comment not found or deleted."]);
-        exit();
-    }
-
-    if ($_SESSION['userId'] !== $existingComment['userId']) {
-        http_response_code(403);
-        echo json_encode(["success" => false, "error" => "Forbidden. You do not have permission to edit this comment.", $_SESSION['userId'], $existingComment['userId']]);
-        exit();
-    }
-
-    $db->query(
-        "UPDATE comments SET content = :content, editedAt = NOW() where id = :commentId",
-        [
-            ":content" => $body['comment'],
-            ":commentId" => $body['commentId']
-        ]
-    );
-
-    http_response_code(200);
-    echo json_encode(["success" => true, "message" => "Comment updated successfully."]);
 }

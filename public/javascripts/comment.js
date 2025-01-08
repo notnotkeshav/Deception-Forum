@@ -43,7 +43,7 @@ $(document).ready(function () {
          dataType: 'json',
          success: (response) => {
             if (response.success) {
-               const comments = response.comments;
+               const comments = response.details.comments;
                sessionStorage.setItem(`comments-thread-${threadId}`, JSON.stringify(comments));
 
                renderComments(comments);
@@ -91,7 +91,7 @@ $(document).ready(function () {
          <li id="comment-${comment.id}" style="margin-left: ${level * 20}px;">
              <p><strong>User ID ${comment.userId} Commented at:</strong> ${comment.createdAt}</p>
              <div>${sanitizedContent}</div>
-             <p>Upvotes: <span class="upvotes">${comment.upvoteCount}</span>, Downvotes: <span class="downvotes">${comment.downvoteCount}</span></p>
+             <p>Upvotes: <span id="upvotes-${comment.id}">${comment.upvoteCount}</span>, Downvotes: <span id="downvotes-${comment.id}">${comment.downvoteCount}</span></p>
              ${isAuthorized && !locked ? `
                <button class="edit-btn" data-comment-id="${comment.id}" data-comment="${sanitizedContent}">Edit</button>
                <button class="delete-btn" data-comment-id="${comment.id}">Delete</button>
@@ -316,8 +316,8 @@ $(document).ready(function () {
          success: (response) => {
             if (response.success) {
                const commentEl = $(`#comment-${commentId}`);
-               commentEl.find('.upvotes').text(response.updatedUpvotes);
-               commentEl.find('.downvotes').text(response.updatedDownvotes);
+               commentEl.find(`#upvotes-${commentId}`).text(response.details.updatedUpvotes);
+               commentEl.find(`#downvotes-${commentId}`).text(response.details.updatedDownvotes);
             } else {
                console.error('Vote failed:', response.error);
             }
