@@ -67,19 +67,19 @@ $(function () {
             password
          },
          success(response) {
-            if (response.session) {
-               sessionStorage.setItem('token', response.session.token);
-               sessionStorage.setItem('userId', response.session.userId);
-               sessionStorage.setItem('user', JSON.stringify(response.session.user));
+            if (response.details.session) {
+               sessionStorage.setItem('token', response.details.session.token);
+               sessionStorage.setItem('userId', response.details.session.userId);
+               sessionStorage.setItem('user', JSON.stringify(response.details.session.user));
                setTimeout(() => {
-                  window.location.href = '/';
+                  window.location.href = '/threads';
                }, 2000);
             }
          },
          error(xhr) {
-            const errorMessage = xhr.responseJSON?.error || 'An error occurred during sign-in.';
+            const errorMessage = xhr.responseJSON?.message || 'An error occurred during sign-in.';
             $('#error-block').text(errorMessage);
-            console.error('Sign-in error:', xhr);
+            console.error('Sign-in error:', xhr.responseJSON);
          }
       });
    });
@@ -115,23 +115,24 @@ $(function () {
          success(response) {
             $('#error-block').empty();
             if (response.success) {
-               $('#success-block').text(`Signup successful! Login URL: ${response.loginurl}`);
+               $('#success-block').text(`Signup successful! Login URL: ${response.details.loginurl}`);
             }
          },
          error(xhr) {
             $('#error-block').empty();
-            const errorMessage = xhr.responseJSON?.error || 'Sign-up failed.';
+            const error = xhr.responseJSON;
+            const errorMessage = error.message || 'Sign-up failed.';
             $('#error-block').text(errorMessage);
 
-            if (xhr.responseJSON?.messages?.length > 0) {
+            if (error.details?.length > 0) {
                const errorList = $('<ul></ul>');
-               xhr.responseJSON.messages.forEach((message) => {
+               error.details.forEach((message) => {
                   errorList.append(`<li>${message}</li>`);
                });
                $('#error-block').append(errorList);
             }
 
-            console.error('Sign-up error:', xhr);
+            console.error('Sign-up error:', xhr.responseJSON);
          }
       });
    });
