@@ -7,12 +7,7 @@ $cache = App::container()->resolve('Core\Cache');
 
 $params = getQueryParams();
 if (!isset($params['id'])) {
-   // 404 Not Found: Thread Id not found
-   http_response_code(404);
-   view("errors/404.php", [
-      "msg" => "Thread Id Not found"
-   ]);
-   exit();
+   sendJsonResponse(404, ["success" => false, "message" => "Thread ID not found"]);
 }
 
 $threadId = $params['id'];
@@ -23,119 +18,121 @@ if ($method === 'GET') {
    if ($cachedThread) {
       $thread = $cachedThread['value'];
    } else {
-      $stmt = $db->query(
-         "SELECT t.*, 
-                 cat.id AS category_id, cat.name AS category_name,
-                 img.id AS image_id, img.imageUrl AS image_url
-          FROM threads t
-          LEFT JOIN thread_category_link tcl ON t.id = tcl.threadId
-          LEFT JOIN categories cat ON tcl.categoryId = cat.id
-          LEFT JOIN thread_images img ON t.id = img.threadId
-          WHERE t.id = :id AND t.deleted = 0",
-         [":id" => $threadId]
-      );
-      $threadData = $db->getAll($stmt);
-      if ($threadData) {
-         $thread = [
-            'id' => $threadData[0]['id'],
-            'title' => $threadData[0]['title'],
-            'content' => $threadData[0]['content'],
-            'userId' => $threadData[0]['userId'],
-            'locked' => $threadData[0]['locked'],
-            'createdAt' => $threadData[0]['createdAt'],
-            'editedAt' => $threadData[0]['editedAt'],
-            'viewsCount' => $threadData[0]['viewsCount'],
-            'upvoteCount' => $threadData[0]['upvoteCount'],
-            'downvoteCount' => $threadData[0]['downvoteCount'],
-            'comments' => [],
-            'category' => null,
-            'images' => []
-         ];
+      try {
+         $db->beginTransaction();
 
-         $imageIds = [];
+         $stmt = $db->query(
+            "SELECT t.*, 
+                        cat.id AS category_id, cat.name AS category_name,
+                        img.id AS image_id, img.imageUrl AS image_url
+                 FROM threads t
+                 LEFT JOIN threadcategorylink tcl ON t.id = tcl.threadId
+                 LEFT JOIN categories cat ON tcl.categoryId = cat.id
+                 LEFT JOIN threadimages img ON t.id = img.threadId
+                 WHERE t.id = :id AND t.isDeleted = 0",
+            [":id" => $threadId]
+         );
+         $threadData = $db->getAll($stmt);
 
-         foreach ($threadData as $row) {
-            if ($row['category_id'] && !$thread['category']) {
-               $thread['category'] = [
-                  'id' => $row['category_id'],
-                  'name' => $row['category_name']
-               ];
+         if ($threadData) {
+            $thread = [
+               'id' => $threadData[0]['id'],
+               'title' => $threadData[0]['title'],
+               'content' => $threadData[0]['content'],
+               'userId' => $threadData[0]['userId'],
+               'locked' => $threadData[0]['locked'],
+               'createdAt' => $threadData[0]['createdAt'],
+               'editedAt' => $threadData[0]['editedAt'],
+               'viewsCount' => $threadData[0]['viewsCount'],
+               'upvoteCount' => $threadData[0]['upvoteCount'],
+               'downvoteCount' => $threadData[0]['downvoteCount'],
+               'comments' => [],
+               'category' => null,
+               'images' => []
+            ];
+
+            $imageIds = [];
+            foreach ($threadData as $row) {
+               if ($row['category_id'] && !$thread['category']) {
+                  $thread['category'] = [
+                     'id' => $row['category_id'],
+                     'name' => $row['category_name']
+                  ];
+               }
+               if ($row['image_id'] && !in_array($row['image_id'], $imageIds)) {
+                  $thread['images'][] = [
+                     'id' => $row['image_id'],
+                     'url' => $row['image_url']
+                  ];
+                  $imageIds[] = $row['image_id'];
+               }
             }
 
-            if ($row['image_id'] && !in_array($row['image_id'], $imageIds)) {
-               $thread['images'][] = [
-                  'id' => $row['image_id'],
-                  'url' => $row['image_url']
-               ];
-               $imageIds[] = $row['image_id'];
-            }
+            $cache->set("thread:" . $threadId, $thread);
+         } else {
+            $db->rollBack();
+            sendJsonResponse(404, ["success" => false, "message" => "No thread found with the provided ID."]);
          }
 
-         $cache->set("thread:" . $threadId, $thread);
-      } else {
-         // 404 Not Found: No thread found with the provided ID
-         http_response_code(404);
-         echo json_encode(["success" => false, "error" => "No thread found with the provided ID."]);
-         exit();
+         $db->commit();
+      } catch (Exception $e) {
+         $db->rollBack();
+         sendJsonResponse(500, ["success" => false, "message" => "An error occurred while fetching the thread."]);
       }
    }
 
-   // 200 OK: Successfully retrieved the thread
    http_response_code(200);
    view("threads/one.view.php", [
       "heading" => "Single Thread",
       "thread" => $thread
    ]);
 } elseif ($method === 'DELETE') {
-   $stmt = $db->query(
-      "SELECT locked, userId FROM threads WHERE id = :id AND deleted = 0",
-      [":id" => $threadId]
-   );
-   $existingThread = $db->getOne($stmt);
+   try {
+      $db->beginTransaction();
 
-   if (!$existingThread) {
-      // 404 Not Found: Thread not found or already deleted
-      http_response_code(404);
-      echo json_encode(["success" => false, "message" => "Thread not found or already deleted."]);
-      exit();
-   }
+      $stmt = $db->query(
+         "SELECT locked, userId FROM threads WHERE id = :id AND isDeleted = 0",
+         [":id" => $threadId]
+      );
+      $existingThread = $db->getOne($stmt);
 
-   if ($existingThread['locked']) {
-      // 403 Forbidden: Thread is locked
-      http_response_code(403);
-      echo json_encode(["success" => false, "message" => "This thread is locked and cannot be deleted."]);
-      exit();
-   }
+      if (!$existingThread) {
+         $db->rollBack();
+         sendJsonResponse(404, ["success" => false, "message" => "Thread not found or already deleted."]);
+      }
 
-   if ($existingThread['userId'] !== $_SESSION['userId']) {
-      // 403 Forbidden: Access Denied
-      http_response_code(403);
-      echo json_encode(["success" => false, "message" => "Access Denied"]);
-      exit();
-   }
+      if ($existingThread['locked']) {
+         $db->rollBack();
+         sendJsonResponse(403, ["success" => false, "message" => "This thread is locked and cannot be deleted."]);
+      }
 
-   $stmt = $db->query(
-      "UPDATE threads SET deleted = 1 WHERE id = :id AND userId = :userId",
-      [
-         ":id" => $threadId,
-         ":userId" => $_SESSION['userId']
-      ]
-   );
+      if ($existingThread['userId'] !== $_SESSION['userId']) {
+         $db->rollBack();
+         sendJsonResponse(403, ["success" => false, "message" => "Access Denied"]);
+      }
 
-   $cacheKey = "thread:" . $threadId;
-   $cache->delete($cacheKey);
+      $stmt = $db->query(
+         "UPDATE threads SET isDeleted = 1 WHERE id = :id AND userId = :userId",
+         [
+            ":id" => $threadId,
+            ":userId" => $_SESSION['userId']
+         ]
+      );
 
-   if ($db->rowCount($stmt) !== 0) {
-      // 200 OK: Successfully deleted the thread
-      http_response_code(200);
-      echo json_encode(["success" => true, "message" => "Thread deleted successfully."]);
-   } else {
-      // 403 Forbidden: Access Denied
-      http_response_code(403);
-      echo json_encode(["success" => false, "message" => "Access Denied"]);
+      $cacheKey = "thread:" . $threadId;
+      $cache->delete($cacheKey);
+
+      if ($db->rowCount($stmt) !== 0) {
+         $db->commit();
+         sendJsonResponse(200, ["success" => true, "message" => "Thread deleted successfully."]);
+      } else {
+         $db->rollBack();
+         sendJsonResponse(403, ["success" => false, "message" => "Access Denied"]);
+      }
+   } catch (Exception $e) {
+      $db->rollBack();
+      sendJsonResponse(500, ["success" => false, "message" => "An error occurred while deleting the thread."]);
    }
 } else {
-   // 405 Method Not Allowed: Invalid HTTP method
-   http_response_code(405);
-   echo json_encode(["success" => false, "error" => "Invalid HTTP method."]);
+   sendJsonResponse(405, ["success" => false, "message" => "Invalid HTTP method."]);
 }

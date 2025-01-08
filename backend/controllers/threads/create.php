@@ -6,76 +6,89 @@ $db = App::container()->resolve('Core\Database');
 $cache = App::container()->resolve('Core\Cache');
 
 if ($method === "GET") {
+   // Render the create thread view
    view("threads/create.view.php", [
       "heading" => "Create Page"
    ]);
 } else {
-
-   $title = $_POST['title'] ?? null;
-   $content = $_POST['content'] ?? null;
-   $category = strtolower($_POST['category']) ?? null;
+   // Retrieve and validate input
+   $title = trim($_POST['title'] ?? '');
+   $content = trim($_POST['content'] ?? '');
+   $category = strtolower(trim($_POST['category'] ?? ''));
    $imageUrls = $_POST['imageUrl'] ?? [];
 
+   // Clear expired cache entries
    $cache->clearExpired();
-   $cachedThread = $cache->get('thread:' . $title);
-   if ($cachedThread) {
-      http_response_code(409); // Conflict
-      echo json_encode(['success' => false, 'error' => "Someone just created a thread with the same name."]);
-      exit();
-   }
-
-   if (empty($title) || empty($content) || empty($category)) {
-      http_response_code(400); // Bad Request
-      echo json_encode(
-         ['success' => false, $title, $content, $category, 'error' => "All fields are required."]
-      );
-      exit();
-   }
 
    try {
+      // Check for duplicate thread title
+      if ($cache->get('thread:' . $title)) {
+         sendJsonResponse(false, "A thread with the same title already exists.", null, 409); // Conflict
+      }
+
+      // Validate required fields
+      if (empty($title) || empty($content) || empty($category)) {
+         sendJsonResponse(false, "All fields are required.", [
+            'missingFields' => [
+               'title' => empty($title),
+               'content' => empty($content),
+               'category' => empty($category)
+            ]
+         ], 400);
+      }
+
+      // Begin transaction
       $db->beginTransaction();
 
+      // Insert thread into the database
       $query = "INSERT INTO threads (title, content, userId) VALUES (:title, :content, :userId)";
       $db->query($query, [
          ':title' => $title,
          ':content' => $content,
          ':userId' => $_SESSION['userId']
       ]);
-      $threadId = $db->lastInsertId();
+      $stmt = $db->query("SELECT id FROM threads WHERE title = :title and userId = :userId", [":title" => $title, ":userId" => $_SESSION['userId']]);
+      $threadId = $db->getOne($stmt)['id'];
 
+      // Handle category (fetch from cache or create if not exists)
       $categoryId = null;
       $cachedCategory = $cache->get('category:' . $category);
-
-      if (is_array($cachedCategory) && isset($cachedCategory['value'])) {
-         $categoryId = (int) $cachedCategory['value'];
+      if ($cachedCategory) {
+         $categoryId = $cachedCategory['value'];
       } else {
-         $query = "SELECT id FROM categories WHERE name = :name LIMIT 1";
-         $stmt = $db->query($query, [':name' => $category]);
+         $stmt = $db->query("SELECT id FROM categories WHERE name = :name LIMIT 1", [':name' => $category]);
          $result = $db->getOne($stmt);
+
          if ($result) {
-            $categoryId = (int) $result['id'];
+            $categoryId = $result['id'];
          } else {
-            $query = "INSERT INTO categories (name) VALUES (:name)";
-            $db->query($query, [':name' => $category]);
-            $categoryId = (int) $db->lastInsertId();
+            $db->query("INSERT INTO categories (name) VALUES (:name)", [':name' => $category]);
+            $stmt = $db->query("SELECT id FROM categories WHERE name = :name LIMIT 1", [':name' => $category]);
+            $categoryId = $db->getOne($stmt)['id'];
          }
          $cache->set('category:' . $category, $categoryId);
       }
 
-      $query = "INSERT INTO thread_category_link (threadId, categoryId) VALUES (:threadId, :categoryId)";
-      $db->query($query, [
+      if (is_null($categoryId)) {
+         sendJsonResponse(false, "Invalid category ID.", [], 400);
+      }
+
+      // Link thread to category
+      $db->query("INSERT INTO threadcategorylink (threadId, categoryId) VALUES (:threadId, :categoryId)", [
          ':threadId' => $threadId,
          ':categoryId' => $categoryId
       ]);
 
+      // Insert thread images if any
+      $imagesInserted = 0;
       if (!empty($imageUrls)) {
          foreach ($imageUrls as $imageUrl) {
             if (!empty($imageUrl)) {
-               $query = "INSERT INTO thread_images (threadId, imageUrl) VALUES (:threadId, :imageUrl)";
-               $db->query($query, [
+               $db->query("INSERT INTO threadimages (threadId, imageUrl) VALUES (:threadId, :imageUrl)", [
                   ':threadId' => $threadId,
                   ':imageUrl' => $imageUrl
                ]);
+               $imagesInserted++;
             }
          }
       }
@@ -83,11 +96,14 @@ if ($method === "GET") {
       $db->commit();
       $cache->set('thread:' . $title, $title);
 
-      http_response_code(201); // Created
-      echo json_encode(['success' => true, 'message' => "Thread created successfully.", "categoryId" => $categoryId, "cachedCategory" => $cachedCategory]);
+      sendJsonResponse(true, "Thread created successfully.", [
+         'threadId' => $threadId,
+         'categoryId' => $categoryId,
+         'imagesInserted' => $imagesInserted
+      ], 201);
    } catch (Exception $e) {
       $db->rollBack();
-      http_response_code(500); // Internal Server Error
-      echo json_encode(['success' => false, 'error' => "$e", "categoryId" => $categoryId, "cachedCategory" => $cachedCategory]);
+      error_log($e->getMessage());
+      sendJsonResponse(false, $e->getMessage(), [], 500);
    }
 }

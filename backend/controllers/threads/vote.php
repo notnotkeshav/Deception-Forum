@@ -9,75 +9,62 @@ $params = getQueryParams();
 $body = getRequestBody();
 
 if ($method === 'PUT' && isset($body['action']) && $body['action'] === 'vote') {
-
     if (!isset($body['threadId'], $body['voteType'], $body['userId'])) {
-        http_response_code(400);
-        echo json_encode(["success" => false, "error" => "Thread ID, vote type, and user ID are required."]);
-        exit();
+        sendJsonResponse(false, "Thread ID, vote type, and user ID are required.", [], 400);
     }
 
-    $threadId = (int)$body['threadId'];
+    $threadId = $body['threadId'];
     $voteType = $body['voteType'];
-    $userId = (int)$body['userId'];
+    $userId = $body['userId'];
 
     if (!in_array($voteType, ['upvote', 'downvote'])) {
-        http_response_code(400);
-        echo json_encode(["success" => false, "error" => "Invalid vote type."]);
-        exit();
+        sendJsonResponse(false, "Invalid vote type.", [], 400);
     }
 
     $stmt = $db->query(
-        "SELECT locked FROM threads WHERE id = :id AND deleted = 0",
+        "SELECT locked FROM threads WHERE id = :id AND isDeleted = 0",
         [":id" => $threadId]
     );
     $thread = $db->getOne($stmt);
 
     if (!$thread) {
-        http_response_code(404);
-        echo json_encode(["success" => false, "error" => "Thread not found or deleted."]);
-        exit();
+        sendJsonResponse(false, "Thread not found or deleted.", [], 404);
     }
 
     if ($thread['locked'] == 1) {
-        http_response_code(403);
-        echo json_encode(["success" => false, "error" => "Thread is locked. You cannot vote on it."]);
-        exit();
+        sendJsonResponse(false, "Thread is locked. You cannot vote on it.", [], 403);
     }
 
     try {
         $db->beginTransaction();
 
-        $db->query(
+        $stmt = $db->query(
             "CALL UpdateThreadVotesAndGetCounts(:threadId, :voteType, :userId)",
             [
-                ":threadId" => $threadId, 
-                ":voteType" => $voteType, 
+                ":threadId" => $threadId,
+                ":voteType" => $voteType,
                 ":userId" => $userId
             ]
         );
 
-        $updatedCounts = $db->getOne(
-            $db->query("SELECT upvoteCount, downvoteCount FROM threads WHERE id = :id", [":id" => $threadId])
-        );
+        $updatedCounts = $db->getOne($stmt);
 
         $cache->delete("thread:" . $threadId);
         $db->commit();
 
-        echo json_encode([
-            "success" => true,
-            "message" => ucfirst($voteType) . " successful.",
-            "updatedUpvotes" => $updatedCounts['upvoteCount'],
-            "updatedDownvotes" => $updatedCounts['downvoteCount']
-        ]);
-        exit();
+        sendJsonResponse(
+            true,
+            ucfirst($voteType) . " successful.",
+            [
+                "updatedUpvotes" => $updatedCounts['upvoteCount'],
+                "updatedDownvotes" => $updatedCounts['downvoteCount']
+            ],
+            200
+        );
     } catch (Exception $e) {
         $db->rollBack();
-        http_response_code(500);
-        echo json_encode(["success" => false, "error" => "An error occurred: " . $e->getMessage()]);
-        exit();
+        sendJsonResponse(false, $e->getMessage(), [], 500);
     }
 } else {
-    http_response_code(405);
-    echo json_encode(["success" => false, "error" => "Invalid HTTP method."]);
-    exit();
+    sendJsonResponse(false, "Invalid HTTP method.", [], 405);
 }

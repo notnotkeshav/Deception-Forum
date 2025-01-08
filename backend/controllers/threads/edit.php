@@ -7,39 +7,40 @@ $cache = App::container()->resolve('Core\Cache');
 
 $params = getQueryParams();
 if (!isset($params['id'])) {
-   // 404 Not Found: Thread Id not found
-   http_response_code(404);
-   view("errors/404.php", [
-      "msg" => "Thread Id Not found"
-   ]);
+   // Thread ID not provided
+   sendJsonResponse(false, "Thread ID not found.", null, 404);
    exit();
 }
 
 $threadId = $params['id'];
 $cache->clearExpired();
 
-if ($method === 'GET') {
 
+if ($method === 'GET') {
+   // Start transaction
+   $db->beginTransaction();
+
+   // Fetch thread details
    $stmt = $db->query(
       "SELECT t.*, 
-              cat.id AS category_id, cat.name AS category_name,
-              img.id AS image_id, img.imageUrl AS image_url
-       FROM threads t
-       LEFT JOIN thread_category_link tcl ON t.id = tcl.threadId
-       LEFT JOIN categories cat ON tcl.categoryId = cat.id
-       LEFT JOIN thread_images img ON t.id = img.threadId
-       WHERE t.id = :id AND t.deleted = 0",
+                    cat.id AS category_id, cat.name AS category_name,
+                    img.imageUrl AS image_url
+             FROM threads t
+             LEFT JOIN threadcategorylink tcl ON t.id = tcl.threadId
+             LEFT JOIN categories cat ON tcl.categoryId = cat.id
+             LEFT JOIN threadimages img ON t.id = img.threadId
+             WHERE t.id = :id AND t.isDeleted = 0",
       [":id" => $threadId]
    );
 
    $rows = $db->getAll($stmt);
 
    if (empty($rows)) {
-      // 404 Not Found: Thread not found or deleted
-      http_response_code(404);
-      echo json_encode(["success" => false, "error" => "Thread not found or deleted."]);
+      $db->rollBack();
+      sendJsonResponse(false, "Thread not found or deleted.", [], 404);
       exit();
    }
+
    $thread = [
       "id" => $rows[0]['id'],
       "title" => $rows[0]['title'],
@@ -50,14 +51,14 @@ if ($method === 'GET') {
       "images" => array_column($rows, 'image_url')
    ];
 
+   $db->commit();
+
    if ($_SESSION['userId'] !== $thread['userId']) {
-      // 403 Forbidden: User does not have permission to edit this thread
-      http_response_code(403);
-      echo json_encode(["success" => false, "error" => "Forbidden. You do not have permission to edit this thread."]);
+      sendJsonResponse(false, "You do not have permission to edit this thread.", null, 403);
       exit();
    }
 
-   // 200 OK: Successfully fetched the thread data
+   // Successfully fetched the thread data
    http_response_code(200);
    view("threads/edit.view.php", [
       "heading" => "Edit Thread",
@@ -67,83 +68,93 @@ if ($method === 'GET') {
    $data = json_decode(file_get_contents('php://input'), true);
 
    if (!$data['title'] || !$data['content']) {
-      // 400 Bad Request: Title and content are required
-      http_response_code(400);
-      echo json_encode(["success" => false, "error" => "Title and content are required."]);
+      sendJsonResponse(false, "Title and content are required.", null, 400);
       exit();
    }
+   try {
 
-   $stmt = $db->query(
-      "SELECT userId, locked FROM threads WHERE id = :id AND deleted = 0",
-      [":id" => $threadId]
-   );
-   $existingThread = $db->getOne($stmt);
+      // Start transaction
+      $db->beginTransaction();
 
-   if (!$existingThread) {
-      // 404 Not Found: Thread not found or deleted
-      http_response_code(404);
-      echo json_encode(["success" => false, "error" => "Thread not found or deleted."]);
-      exit();
-   }
+      $stmt = $db->query(
+         "SELECT userId, locked FROM threads WHERE id = :id AND isDeleted = 0",
+         [":id" => $threadId]
+      );
+      $existingThread = $db->getOne($stmt);
 
-   if ($existingThread['locked']) {
-      // 403 Forbidden: Thread is locked
-      http_response_code(403);
-      echo json_encode(["success" => false, "error" => "This thread is locked and cannot be modified."]);
-      exit();
-  }
-
-   if ($_SESSION['userId'] !== $existingThread['userId']) {
-      // 403 Forbidden: User does not have permission to edit this thread
-      http_response_code(403);
-      echo json_encode(["success" => false, "error" => "Forbidden. You do not have permission to edit this thread."]);
-      exit();
-   }
-
-   $db->query(
-      "UPDATE threads SET title = :title, content = :content, editedAt = NOW() WHERE id = :id",
-      [
-         ":title" => $data['title'],
-         ":content" => $data['content'],
-         ":id" => $threadId
-      ]
-   );
-
-   if (isset($data['category'])) {
-      $categoryName = $data['category'];
-      $stmt = $db->query("SELECT id FROM categories WHERE name = :name LIMIT 1", [":name" => $categoryName]);
-      $existingCategory = $db->getOne($stmt);
-
-      if ($existingCategory) {
-          $categoryId = $existingCategory['id'];
-      } else {
-          $query = "INSERT INTO categories (name) VALUES (:name)";
-          $db->query($query, [':name' => $categoryName]);
-          $categoryId = $db->lastInsertId();
+      if (!$existingThread) {
+         $db->rollBack();
+         sendJsonResponse(false, "Thread not found or deleted.", null, 404);
+         exit();
       }
 
-      $db->query("DELETE FROM thread_category_link WHERE threadId = :threadId", [":threadId" => $threadId]);
+      if ($existingThread['locked']) {
+         $db->rollBack();
+         sendJsonResponse(false, "This thread is locked and cannot be modified.", null, 403);
+         exit();
+      }
 
+      if ($_SESSION['userId'] !== $existingThread['userId']) {
+         $db->rollBack();
+         sendJsonResponse(false, "You do not have permission to edit this thread.", null, 403);
+         exit();
+      }
+
+      // Update thread
       $db->query(
-          "INSERT INTO thread_category_link (threadId, categoryId) VALUES (:threadId, :categoryId)",
-          [":threadId" => $threadId, ":categoryId" => $categoryId]
+         "UPDATE threads SET title = :title, content = :content, editedAt = NOW() WHERE id = :id",
+         [
+            ":title" => $data['title'],
+            ":content" => $data['content'],
+            ":id" => $threadId
+         ]
       );
-   }
 
-   if (isset($data['images'])) {
-      $db->query("DELETE FROM thread_images WHERE threadId = :threadId", [":threadId" => $threadId]);
+      // Update or insert category
+      if (isset($data['category'])) {
+         $categoryName = $data['category'];
+         $stmt = $db->query("SELECT id FROM categories WHERE name = :name LIMIT 1", [":name" => $categoryName]);
+         $existingCategory = $db->getOne($stmt);
 
-      foreach ($data['images'] as $imageUrl) {
+         if ($existingCategory) {
+            $categoryId = $existingCategory['id'];
+         } else {
+            $query = "INSERT INTO categories (name) VALUES (:name)";
+            $db->query($query, [':name' => $categoryName]);
+
+            $stmt = $db->query("SELECT id FROM categories WHERE name = :name LIMIT 1", [':name' => $categoryName]);
+            $categoryId = $db->getOne($stmt)['id'];
+         }
+
+         // Update thread-category link
+         $db->query("DELETE FROM threadcategorylink WHERE threadId = :threadId", [":threadId" => $threadId]);
+
          $db->query(
-            "INSERT INTO thread_images (threadId, imageUrl) VALUES (:threadId, :imageUrl)",
-            [":threadId" => $threadId, ":imageUrl" => $imageUrl]
+            "INSERT INTO threadcategorylink (threadId, categoryId) VALUES (:threadId, :categoryId)",
+            [":threadId" => $threadId, ":categoryId" => $categoryId]
          );
       }
+
+      // Update images
+      if (isset($data['images'])) {
+         $db->query("DELETE FROM threadimages WHERE threadId = :threadId", [":threadId" => $threadId]);
+
+         foreach ($data['images'] as $imageUrl) {
+            $db->query(
+               "INSERT INTO threadimages (threadId, imageUrl) VALUES (:threadId, :imageUrl)",
+               [":threadId" => $threadId, ":imageUrl" => $imageUrl]
+            );
+         }
+      }
+
+      $db->commit();
+      $cache->delete("thread:$threadId");
+
+      //  Successfully updated the thread
+      sendJsonResponse(true, "Thread updated successfully.");
+   } catch (Exception $e) {
+      $db->rollBack();
+      error_log($e->getMessage());
+      sendJsonResponse(false, "An error occurred: " . $e->getMessage(), [], 500);
    }
-
-   $cache->delete("thread:$threadId");
-
-   // 200 OK: Successfully updated the thread
-   http_response_code(200);
-   echo json_encode(["success" => true, "message" => "Thread updated successfully."]);
 }
