@@ -41,7 +41,7 @@
       theme: 'snow',
       modules: {
          toolbar: [
-            [{ 'header':[2,3] }],
+            [{ 'header':[2,3,false] }],
             [{ 'list': 'ordered'}, { 'list': 'bullet' }],
             ['bold', 'italic', 'underline'],
             ['link'],
