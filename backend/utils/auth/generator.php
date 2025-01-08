@@ -5,7 +5,7 @@ function generateUsername($length)
       return "Invalid length. Username must be between 15 and 25 characters.";
    }
 
-   $filename = 'usernames.txt';
+   $filename = './backend/utils/auth/usernames.txt';
    if (!file_exists($filename)) {
       $words = [
          "Skywalker", "Shadow", "Phoenix", "Blizzard", "Nightmare",

@@ -38,7 +38,7 @@ class Validator
       $specialCharCount = 0;
       $specialChars = '!@#$%^&*()_-+=<>?{}[]|~:;",\'./\\';
       $previousChar = null;
-      $consecutiveCount = 1;
+      $consecutiveCount = 0;
 
       for ($i = 0; $i < $length; $i++) {
          $char = $password[$i];
@@ -49,7 +49,7 @@ class Validator
                break;
             }
          } else {
-            $consecutiveCount = 1;
+            $consecutiveCount = 0;
          }
          if (ctype_upper($char)) {
             $uppercaseCount++;
@@ -57,8 +57,10 @@ class Validator
             $lowercaseCount++;
          } elseif (ctype_digit($char)) {
             if (isset($password[$i - 1]) && ctype_digit($password[$i - 1]) && $char === $password[$i - 1]) {
-               $failedChecks[] = "No more than two consecutive identical digits allowed.";
-               break;
+               if (isset($password[$i - 2]) && $password[$i - 2] === $char) {
+                  $failedChecks[] = "No more than two consecutive identical digits allowed.";
+                  break;
+              }
             }
             $digitCount++;
          } elseif (strpos($specialChars, $char) !== false) {
@@ -103,7 +105,7 @@ class Validator
       $checks += 2; // 2 checks for username and name
 
       // Check against common passwords
-      $filename = 'commompasswords.txt';
+      $filename = './backend/utils/auth/commonpasswords.txt';
       if (!file_exists($filename)) {
          // echo "Common passwords file not found, using default list.";
          $commonPatterns = ['password', '123456', 'qwerty', 'abc123', 'password1'];
