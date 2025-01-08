@@ -3,12 +3,14 @@
 use Backend\Core\App;
 use Backend\Utils\Validator;
 
+// Resolve database and cache instances from the container
 $db = App::container()->resolve('Core\Database');
 $cache = App::container()->resolve('Core\Cache');
 
-$maxFailedAttempts = 3;
-$maxSuspiciousAttempts = 5;
-$maxLockouts = 5;
+// Define login security parameters
+$maxFailedAttempts = 3; // Maximum failed login attempts before locking the account
+$maxSuspiciousAttempts = 5; // Maximum number of suspicious IPs allowed
+$maxLockouts = 5; // Maximum number of lockouts before permanent account lock
 
 $ipAddress = $_SERVER['REMOTE_ADDR'];
 $currentTime = time();
@@ -18,129 +20,113 @@ if ($method === 'GET') {
       "heading" => "SignIn",
    ]);
 } else {
-   $params = getQueryParams();
-   $cache->clearExpired();
-   $loginCode = $cache->get("loginurl:" . $params['code']);
+   try {
+      // Start a database transaction
+      $db->beginTransaction();
 
-   if (!$loginCode) {
-      $stmt = $db->query("SELECT * FROM users WHERE loginurl = :code AND isDeleted = 0", [":code" => $params['code']]);
-      $user = $db->getOne($stmt);
-      if ($user && isset($user['loginURL'])) {
-         $cache->set("loginurl:" . $params['code'], $loginCode);
-         $cache->set("user:loginurl:" . $params['code'], $user);
-      } else {
-         http_response_code(404); // Not Found
-         echo json_encode([
-            'error' => "Invalid Login Code: {$params['code']}",
-         ]);
-         exit();
-      }
-   }
+      $params = getQueryParams();
+      $cache->clearExpired();
 
-   $user = $cache->get("user:loginurl:" . $params['code']);
+      // Retrieve the login code from the cache
+      $loginCode = $cache->get("loginurl:" . $params['code']);
 
-   $lockoutKey = "lockout:" . $user['value']['ID'];
-   $failedAttemptsKey = "failed_attempts:" . $user['value']['ID'];
-   $suspiciousIPKey = "suspicious_ip:" . $user['value']['ID'];
-   $lockoutsKey = "lockouts:" . $user['value']['ID'];
+      // If the login code is not cached, fetch it from the database
+      if (!$loginCode) {
+         $stmt = $db->query("SELECT * FROM users WHERE loginurl = :code AND isDeleted = 0", [":code" => $params['code']]);
+         $user = $db->getOne($stmt);
 
-   $lockoutTime = $cache->get($lockoutKey)['value'] ?? null;
-   if ($lockoutTime && $lockoutTime > $currentTime) {
-      $remainingLockout = ceil(($lockoutTime - $currentTime) / 60);
-      http_response_code(429); // Too Many Requests
-      echo json_encode(['error' => "Account locked due to multiple failed login attempts. Please try again after $remainingLockout minutes."]);
-      exit();
-   }
-
-   if (!Validator::email($_POST['email'])) {
-      http_response_code(400); // Bad Request
-      echo json_encode(['error' => "Invalid Email"]);
-      exit();
-   }
-
-   $suspiciousIPs = $cache->get($suspiciousIPKey)['value'] ?? [];
-   if (!is_array($suspiciousIPs)) {
-      $suspiciousIPs = [];
-   }
-   if (!in_array($ipAddress, $suspiciousIPs)) {
-      $suspiciousIPs[] = $ipAddress;
-      $cache->set($suspiciousIPKey, $suspiciousIPs);
-
-      if (count($suspiciousIPs) >= $maxSuspiciousAttempts) {
-         http_response_code(403); // Forbidden
-         echo json_encode(['error' => "Your account has been flagged for suspicious activity. Please contact support."]);
-         // Logic for suspending account, sending mail for regenerate new password, and strike.
-         exit();
-      }
-   }
-
-   if ($user['value']['email'] === $_POST['email']) {
-      if (password_verify($_POST['password'], $user['value']['passwordHash'])) {
-         $cache->delete($failedAttemptsKey);
-         $cache->delete($lockoutKey);
-         $cache->delete($suspiciousIPKey);
-
-         $token = generateToken();
-         $expiresAt = $currentTime + (24 * 60 * 60);
-
-         $_SESSION['token'] = $token;
-         $_SESSION['token_expiration'] = $expiresAt;
-         $_SESSION['userId'] = $user['value']['ID'];
-         $_SESSION['user'] = $user['value'];
-
-         http_response_code(200); // OK
-         echo json_encode([
-            'session' => $_SESSION
-         ]);
-         exit();
-      }
-
-      $failedAttempts = $cache->get($failedAttemptsKey)['value'] ?? 0;
-      if (!is_int($failedAttempts)) {
-         $failedAttempts = 0;
-      }
-      $failedAttempts++;
-      $cache->set($failedAttemptsKey, $failedAttempts);
-
-      if ($failedAttempts >= $maxFailedAttempts) {
-         $lockoutDuration = 0;
-
-         if ($failedAttempts < 6) {
-            $lockoutDuration = 15 * 60;
-         } elseif ($failedAttempts < 9) {
-            $lockoutDuration = 30 * 60;
-         } elseif ($failedAttempts < 12) {
-            $lockoutDuration = 45 * 60;
+         // Cache the retrieved login code and user information
+         if ($user && isset($user['loginUrl'])) {
+            $cache->set("loginurl:" . $params['code'], $loginCode);
+            $cache->set("user:loginurl:" . $params['code'], $user);
          } else {
-            $lockoutDuration = 3 * 24 * 60 * 60;
+            throw new Exception("Invalid Login Code: {$params['code']}", 404);
          }
+      }
 
-         $cache->set($lockoutKey, $currentTime + $lockoutDuration);
-         $lockouts = $cache->get($lockoutsKey) ?? 0;
-         if (!is_int($lockouts)) {
-            $lockouts = 0;
+      $user = $cache->get("user:loginurl:" . $params['code']);
+
+      // Define keys for tracking lockouts, failed attempts, and suspicious IPs
+      $lockoutKey = "lockout:" . $user['value']['id'];
+      $failedAttemptsKey = "failed_attempts:" . $user['value']['id'];
+      $suspiciousIPKey = "suspicious_ip:" . $user['value']['id'];
+      $lockoutsKey = "lockouts:" . $user['value']['id'];
+
+      // Check if the account is locked
+      $lockoutTime = $cache->get($lockoutKey)['value'] ?? null;
+      if ($lockoutTime && $lockoutTime > $currentTime) {
+         $remainingLockout = ceil(($lockoutTime - $currentTime) / 60);
+         throw new Exception("Account locked. Try again after $remainingLockout minutes.", 429);
+      }
+
+      if (!Validator::email($_POST['email'])) {
+         throw new Exception("Invalid Email", 400);
+      }
+
+      // Track suspicious IPs and flag the account if the threshold is exceeded
+      $suspiciousIPs = $cache->get($suspiciousIPKey)['value'] ?? [];
+      if (!in_array($ipAddress, $suspiciousIPs)) {
+         $suspiciousIPs[] = $ipAddress;
+         $cache->set($suspiciousIPKey, $suspiciousIPs);
+
+         if (count($suspiciousIPs) >= $maxSuspiciousAttempts) {
+            throw new Exception("Account flagged for suspicious activity. Contact support.", 403);
          }
-         $lockouts++;
-         $cache->set($lockoutsKey, $lockouts);
+      }
 
-         if ($lockouts > $maxLockouts) {
-            http_response_code(423); // Locked
-            echo json_encode(['error' => "Your account has been locked due to repeated login failures. You will need to reset your password."]);
-            // send mail for password reset and reason for this lockout.
+      if ($user['value']['email'] === $_POST['email']) {
+         if (password_verify($_POST['password'], $user['value']['passwordHash'])) {
+            // Clear failed attempts, lockouts, and suspicious IPs
+            $cache->delete($failedAttemptsKey);
+            $cache->delete($lockoutKey);
+            $cache->delete($suspiciousIPKey);
+
+            $token = generateToken();
+            $expiresAt = $currentTime + (24 * 60 * 60);
+
+            $_SESSION['token'] = $token;
+            $_SESSION['token_expiration'] = $expiresAt;
+            $_SESSION['userId'] = $user['value']['id'];
+            $_SESSION['user'] = $user['value'];
+
+            sendJsonResponse(true, "Signin Successful", ['session' => $_SESSION]);
+            $db->commit();
             exit();
          }
 
-         http_response_code(429); // Too Many Requests
-         echo json_encode(['error' => "Account locked due to multiple failed login attempts. Please try again in 15 minutes."]);
-         exit();
-      }
+         // Increment the failed attempts counter
+         $failedAttempts = $cache->get($failedAttemptsKey)['value'] ?? 0;
+         $failedAttempts++;
+         $cache->set($failedAttemptsKey, $failedAttempts);
 
-      http_response_code(401); // Unauthorized
-      echo json_encode(['error' => "Either email or password is incorrect. Attempt: $failedAttempts"]);
-      exit();
-   } else {
-      http_response_code(401); // Unauthorized
-      echo json_encode(['error' => "Login URL does not match with entered email. Try again"]);
-      exit();
+         // Lock the account if failed attempts exceed the threshold
+         if ($failedAttempts >= $maxFailedAttempts) {
+            $lockoutDuration = match (true) {
+               $failedAttempts < 6 => 15 * 60,
+               $failedAttempts < 9 => 30 * 60,
+               $failedAttempts < 12 => 45 * 60,
+               default => 3 * 24 * 60 * 60,
+            };
+
+            $cache->set($lockoutKey, $currentTime + $lockoutDuration);
+            $lockouts = $cache->get($lockoutsKey) ?? 0;
+            $cache->set($lockoutsKey, $lockouts + 1);
+
+            // Permanently lock the account if lockout attempts exceed the limit
+            if ($lockouts > $maxLockouts) {
+               throw new Exception("Account permanently locked. Reset your password.", 423);
+            }
+
+            throw new Exception("Account locked. Try again in 15 minutes.", 429);
+         }
+
+         throw new Exception("Invalid email or password. Attempt: $failedAttempts", 401);
+      } else {
+         throw new Exception("Login URL does not match the provided email.", 401);
+      }
+   } catch (Exception $e) {
+      $db->rollBack();
+      error_log($e->getMessage());
+      sendJsonResponse(false, $e->getMessage(), [], 500);
    }
 }
