@@ -10,9 +10,9 @@ $(document).ready(() => {
       if (xhr.status === 401) {
          $('#error-block').text('Unauthorized access. Please log in.');
          sessionStorage.removeItem('token'); // Clear the token on unauthorized access
-         setTimeout(() => window.location.href = '/signin', 2000); // Redirect to login page
+         setTimeout(() => window.location.href = '/signin', 1000); // Redirect to login page
       } else {
-         $('#error-block').text(xhr.responseJSON?.error || 'An unexpected error occurred. Please try again.');
+         $('#error-block').text(xhr.responseJSON?.message || 'An unexpected error occurred. Please try again.');
       }
    };
 
@@ -55,7 +55,7 @@ $(document).ready(() => {
          (response) => {
             if (response.success) {
                $('#success-block').text('Redirecting to threads...');
-               setTimeout(() => (window.location.href = `/threads`), 2000);
+               setTimeout(() => (window.location.href = `/threads`), 1000);
             }
          }
       );
@@ -160,8 +160,8 @@ $(document).ready(() => {
          (response) => {
             if (response.success) {
                const threadEl = $(`#thread-${threadId}`);
-               threadEl.find('.upvotes').text(response.updatedUpvotes);
-               threadEl.find('.downvotes').text(response.updatedDownvotes);
+               threadEl.find('.upvotes').text(response.details.updatedUpvotes);
+               threadEl.find('.downvotes').text(response.details.updatedDownvotes);
             } else {
                alert(response.error || 'Vote failed.');
                console.error('Vote failed:', response.error);
