@@ -6,6 +6,8 @@ use Backend\Utils\Validator;
 // Resolve database and cache instances from the container
 $db = App::container()->resolve('Core\Database');
 $cache = App::container()->resolve('Core\Cache');
+$templateLoader = App::container()->resolve('Core\TemplateLoader');
+$mailer = App::container()->resolve('Core\Mailer');
 
 // Define login security parameters
 $maxFailedAttempts = 3; // Maximum failed login attempts before locking the account
@@ -123,7 +125,16 @@ if ($method === 'GET') {
 
             // Permanently lock the account if lockout attempts exceed the limit
             if ($lockouts > $maxLockouts) {
-               throw new Exception("Account permanently locked. Reset your password.", 423);
+               $emailBody = $templateLoader->render('accountBan.html', [
+                  'name' => $user['name']
+               ]);
+
+               $mailer->sendHTML(
+                  $user['email'],
+                  "Account Permanently Locked",
+                  $emailBody
+               );
+               throw new Exception("Account permanently locked. Check your mailbox for further instructions.", 423);
             }
 
             throw new Exception("Account locked. Try again in 15 minutes.", 429);
