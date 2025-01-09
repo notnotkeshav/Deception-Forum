@@ -15,7 +15,7 @@ class Validator
       return filter_var($value, FILTER_VALIDATE_EMAIL);
    }
    
-   public static function password($value, $username, $name)
+   public static function password($value, $username = '', $name = '')
    {
       if (!is_string($value)) {
          return [false, "Invalid type"]; // Return with a failure message
@@ -60,7 +60,7 @@ class Validator
                if (isset($password[$i - 2]) && $password[$i - 2] === $char) {
                   $failedChecks[] = "No more than two consecutive identical digits allowed.";
                   break;
-              }
+               }
             }
             $digitCount++;
          } elseif (strpos($specialChars, $char) !== false) {
@@ -94,15 +94,15 @@ class Validator
       }
       $checks++;
 
-      // Check against username and name
+      // Check against username and name only if they are provided
       $lowerPassword = strtolower($password);
-      if (strpos($lowerPassword, strtolower($username)) !== false) {
+      if ($username && strpos($lowerPassword, strtolower($username)) !== false) {
          $failedChecks[] = "Password must not contain the username.";
       }
-      if (strpos($lowerPassword, strtolower($name)) !== false) {
+      if ($name && strpos($lowerPassword, strtolower($name)) !== false) {
          $failedChecks[] = "Password must not contain the name.";
       }
-      $checks += 2; // 2 checks for username and name
+      $checks += 2; // 2 checks for username and name (if provided)
 
       // Check against common passwords
       $filename = './backend/utils/auth/commonpasswords.txt';
