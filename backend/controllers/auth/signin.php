@@ -35,6 +35,7 @@ if ($method === 'GET') {
          $stmt = $db->query("SELECT * FROM users WHERE loginurl = :code AND isDeleted = 0", [":code" => $params['code']]);
          $user = $db->getOne($stmt);
 
+
          // Cache the retrieved login code and user information
          if ($user && isset($user['loginUrl'])) {
             $cache->set("loginurl:" . $params['code'], $loginCode);
@@ -44,13 +45,14 @@ if ($method === 'GET') {
          }
       }
 
-      $user = $cache->get("user:loginurl:" . $params['code']);
+      $user = $cache->get("user:loginurl:" . $params['code'])['value'];
+      // dumpAndDie($user);
 
       // Define keys for tracking lockouts, failed attempts, and suspicious IPs
-      $lockoutKey = "lockout:" . $user['value']['id'];
-      $failedAttemptsKey = "failed_attempts:" . $user['value']['id'];
-      $suspiciousIPKey = "suspicious_ip:" . $user['value']['id'];
-      $lockoutsKey = "lockouts:" . $user['value']['id'];
+      $lockoutKey = "lockout:" . $user['id'];
+      $failedAttemptsKey = "failed_attempts:" . $user['id'];
+      $suspiciousIPKey = "suspicious_ip:" . $user['id'];
+      $lockoutsKey = "lockouts:" . $user['id'];
 
       // Check if the account is locked
       $lockoutTime = $cache->get($lockoutKey)['value'] ?? null;
@@ -74,8 +76,8 @@ if ($method === 'GET') {
          }
       }
 
-      if ($user['value']['email'] === $_POST['email']) {
-         if (password_verify($_POST['password'], $user['value']['passwordHash'])) {
+      if ($user['email'] === $_POST['email']) {
+         if (password_verify($_POST['password'], $user['passwordHash'])) {
             // Clear failed attempts, lockouts, and suspicious IPs
             $cache->delete($failedAttemptsKey);
             $cache->delete($lockoutKey);
@@ -86,8 +88,8 @@ if ($method === 'GET') {
 
             $_SESSION['token'] = $token;
             $_SESSION['token_expiration'] = $expiresAt;
-            $_SESSION['userId'] = $user['value']['id'];
-            $_SESSION['user'] = $user['value'];
+            $_SESSION['userId'] = $user['id'];
+            $_SESSION['user'] = $user;
 
             $stmt = $db->query("SELECT id, role FROM MODERATORS WHERE userId = :userId", [":userId" => $_SESSION['userId']]);
             $response = $db->getOne($stmt);
@@ -99,7 +101,6 @@ if ($method === 'GET') {
 
             sendJsonResponse(true, "Signin Successful", ['session' => $_SESSION]);
             $db->commit();
-            exit();
          }
 
          // Increment the failed attempts counter
