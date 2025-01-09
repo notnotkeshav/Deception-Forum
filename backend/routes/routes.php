@@ -10,6 +10,11 @@ $router->post("/signout", "auth/signout.php")->only('auth');
 $router->get("/generate_invite_code", "auth/invite.php")->only('auth');
 $router->post("/generate_invite_code", "auth/invite.php")->only('auth');
 $router->get("/username", "auth/generate_username.php")->only('guest');
+// Password
+$router->get("/change-password", "auth/password/change.php")->only('auth');
+$router->put("/change-password", "auth/password/change.php")->only('auth');
+$router->get("/forgot-password", "auth/password/forgot.php")->only('guest');
+$router->get("/reset-password", "auth/password/reset.php")->only('guest');
 // Thread Routes
 $router->get("/threads", "threads/all.php");
 $router->get("/threads/new", "threads/create.php")->only('auth');
@@ -35,3 +40,4 @@ $router->put("/thread/lock", "moderators/lock.php")->only('admin');
 // Group Message Routes
 // Credit Maintaining Routes
 // User Profiles Routes
+$router->get("/user", "user/details.php")->only('auth');

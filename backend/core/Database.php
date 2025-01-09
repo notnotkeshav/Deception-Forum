@@ -95,4 +95,10 @@ class Database
         $connection = $this->getConnection();
         $connection->rollBack();
     }
+
+    public function inTransaction(): bool
+    {
+        $connection = $this->getConnection();
+        return $connection->inTransaction();
+    }
 }
