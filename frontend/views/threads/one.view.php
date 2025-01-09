@@ -49,7 +49,7 @@
    <?php endif; ?>
 
    <!-- Admin/Moderator Lock/Unlock Button -->
-   <?php if ($_SESSION['user']['accessLevel'] >= 10) : ?>
+   <?php if ($_SESSION['moderator']) : ?>
       <button id="lock-unlock-btn"
          data-thread-id="<?php echo $thread['id']; ?>"
          class="btn btn-large <?php echo $thread['locked'] ? 'btn-danger' : 'btn-success'; ?>">

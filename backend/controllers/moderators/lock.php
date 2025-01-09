@@ -8,44 +8,62 @@ $cache = App::container()->resolve('Core\Cache');
 $body = getRequestBody();
 
 if ($method === 'PUT') {
-    if (!isset($body['threadId'])) {
-        http_response_code(400);
-        echo json_encode(["success" => false, "error" => "Thread ID is required."]);
-        exit();
+    if (empty($body['threadId'])) {
+        // Thread ID is required
+        sendJsonResponse(false, "Thread ID is required.", [], 400);
     }
 
-    $stmt = $db->query(
-        "SELECT locked FROM threads WHERE id = :id", 
-        [":id" => $body['threadId']]
-    );
-    $thread = $db->getOne($stmt);
+    try {
+        $db->beginTransaction();
 
-    if (!$thread) {
-        http_response_code(404);
-        echo json_encode(["success" => false, "error" => "Thread not found."]);
-        exit();
-    }
+        // Check if the thread exists and get the current lock status
+        $stmt = $db->query(
+            "SELECT locked FROM threads WHERE id = :id",
+            [":id" => $body['threadId']]
+        );
+        $thread = $db->getOne($stmt);
 
-    if ($_SESSION['user']['accessLevel'] < 10) {
-        http_response_code(403);
-        echo json_encode(["success" => false, "error" => "You do not have permission to lock/unlock this thread.", $_SESSION['user']['accessLevel']]);
-        exit();
-    }
+        if (!$thread) {
+            // Thread does not exist
+            sendJsonResponse(false, "Thread not found.", [], 404);
+        }
 
-    $newLockStatus = $thread['locked'] ? 0 : 1;
-    $lockedBy = $newLockStatus ? $_SESSION['userId'] : null;
+        // Check if the user has moderator privileges
+        if (empty($_SESSION['moderator'])) {
+            // Insufficient permissions
+            sendJsonResponse(false, "You do not have permission to lock/unlock this thread.", [], 403);
+        }
 
-    $stmt = $db->query(
-        "UPDATE threads SET locked = :locked, lockedBy = :lockedBy WHERE id = :id", 
-        [":locked" => $newLockStatus,":lockedBy"=>$lockedBy, ":id" => $body['threadId']]
-    );
+        // Determine new lock status
+        $newLockStatus = $thread['locked'] ? 0 : 1;
+        $lockedBy = $newLockStatus ? $_SESSION['userId'] : null;
 
-    if ($stmt) {
+        // Update the thread's lock status
+        $stmt = $db->query(
+            "UPDATE threads SET locked = :locked, lockedBy = :lockedBy WHERE id = :id",
+            [
+                ":locked" => $newLockStatus,
+                ":lockedBy" => $lockedBy,
+                ":id" => $body['threadId']
+            ]
+        );
+
+        if (!$stmt) {
+            throw new Exception("Failed to update thread lock status.");
+        }
+
         $cache->delete("thread:" . $body['threadId']);
-        http_response_code(200);
-        echo json_encode(["success" => true, "locked" => $newLockStatus]);
-    } else {
-        http_response_code(500);
-        echo json_encode(["success" => false, "error" => "Failed to update thread lock status."]);
+
+        $db->commit();
+        sendJsonResponse(true, "Thread lock status updated successfully.", [
+            "locked" => $newLockStatus
+        ], 200);
+    } catch (Exception $e) {
+        $db->rollBack();
+        error_log($e->getMessage());
+        sendJsonResponse(false, "An error occurred: " . $e->getMessage(), [], 500);
     }
+} else {
+    //  Invalid HTTP method
+    sendJsonResponse(false, "Invalid HTTP method.", [], 405);
 }

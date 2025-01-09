@@ -89,6 +89,14 @@ if ($method === 'GET') {
             $_SESSION['userId'] = $user['value']['id'];
             $_SESSION['user'] = $user['value'];
 
+            $stmt = $db->query("SELECT id, role FROM MODERATORS WHERE userId = :userId", [":userId" => $_SESSION['userId']]);
+            $response = $db->getOne($stmt);
+            if ($response) {
+               $_SESSION['moderator'] = true;
+            } else {
+               $_SESSION['moderator'] = false;
+            }
+
             sendJsonResponse(true, "Signin Successful", ['session' => $_SESSION]);
             $db->commit();
             exit();
