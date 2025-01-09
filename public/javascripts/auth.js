@@ -122,7 +122,8 @@ $(function () {
          success(response) {
             $('#error-block').empty();
             if (response.success) {
-               $('#success-block').text(`Signup successful! Login URL: ${response.details.loginurl}`);
+               $('#success-block').text(`Signup successful! Kindly check you mail box.`);
+               setTimeout(() => { window.location.href = '/threads' }, 1000)
             }
          },
          error(xhr) {

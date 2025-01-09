@@ -14,7 +14,9 @@ $router->get("/username", "auth/generate_username.php")->only('guest');
 $router->get("/change-password", "auth/password/change.php")->only('auth');
 $router->put("/change-password", "auth/password/change.php")->only('auth');
 $router->get("/forgot-password", "auth/password/forgot.php")->only('guest');
+$router->post("/forgot-password", "auth/password/forgot.php")->only('guest');
 $router->get("/reset-password", "auth/password/reset.php")->only('guest');
+$router->patch("/reset-password", "auth/password/reset.php")->only('guest');
 // Thread Routes
 $router->get("/threads", "threads/all.php");
 $router->get("/threads/new", "threads/create.php")->only('auth');

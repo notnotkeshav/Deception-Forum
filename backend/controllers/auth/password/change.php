@@ -5,6 +5,8 @@ use Backend\Utils\Validator;
 
 $db = App::container()->resolve('Core\Database');
 $cache = App::container()->resolve('Core\Cache');
+$templateLoader = App::container()->resolve('Core\TemplateLoader');
+$mailer = App::container()->resolve('Core\Mailer');
 
 try {
    // Check if the user is logged in and has the correct access level
@@ -102,7 +104,17 @@ try {
       // Check if the update was successful
       $db->commit();
       if ($db->rowCount($stmt) > 0) {
-         // Success
+         $currentYear = date('Y');
+         $emailBody = $templateLoader->render('changepassword.html', [
+            'name' => $user['name'],
+            'year' => $currentYear
+         ]);
+
+         $mailer->sendHTML(
+            $user['email'],
+            "Password Changed Successfully",
+            $emailBody
+         );
          sendJsonResponse(true, "Password changed successfully.", [], 201);
       } else {
          // No rows updated

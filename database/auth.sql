@@ -39,3 +39,14 @@ CREATE TABLE inviteCodes (
     FOREIGN KEY (generatorId) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (usedBy) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TABLE passwordResets (
+    id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
+    userId char(36) NOT NULL,
+    resetToken VARCHAR(255) NOT NULL,
+    expiry INT NOT NULL,
+    isUsed TINYINT(1) Default 0,
+    isDeleted TINYINT(1) DEFAULT 0,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
