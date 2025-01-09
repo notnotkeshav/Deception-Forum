@@ -1,4 +1,10 @@
 $(function () {
+   function deleteCookies() {
+      let allCookies = document.cookie.split(';');
+      for (let i = 0; i < allCookies.length; i++)
+         document.cookie = allCookies[i] + "=;expires=" +
+            new Date(0).toUTCString();
+   }
    const token = sessionStorage.getItem('token');
 
    // Username generation
@@ -36,6 +42,7 @@ $(function () {
                sessionStorage.removeItem('token');
                sessionStorage.removeItem('userId');
                sessionStorage.removeItem('user');
+               deleteCookies();
                window.location.href = '/signin';
             }
          },
