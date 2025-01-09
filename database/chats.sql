@@ -1,6 +1,6 @@
 USE forum;
 
-CREATE TABLE groups (
+CREATE TABLE chatGroups (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
     groupName VARCHAR(255) NOT NULL,
     createdBy CHAR(36) NOT NULL,
@@ -15,18 +15,20 @@ CREATE TABLE groupMembers (
     role ENUM('owner', 'admin', 'moderator', 'member', 'guest') DEFAULT 'member',
     status ENUM('active', 'banned', 'left') DEFAULT 'active',
     joinedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (groupId) REFERENCES groups(id) ON DELETE CASCADE,
+    FOREIGN KEY (groupId) REFERENCES chatGroups(id) ON DELETE CASCADE,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE messages (
+CREATE TABLE groupMessages (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
     groupId CHAR(36) DEFAULT NULL,
     userId CHAR(36) NOT NULL,
     message TEXT NOT NULL,
+    isEdited BOOLEAN DEFAULT FALSE,
+    isDeleted BOOLEAN DEFAULT FALSE,
     sentAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (groupId) REFERENCES groups(id) ON DELETE CASCADE
+    FOREIGN KEY (groupId) REFERENCES chatGroups(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE privateChats (
@@ -43,6 +45,8 @@ CREATE TABLE privateChatMessages (
     chatId CHAR(36) NOT NULL,
     userId CHAR(36) NOT NULL,
     message TEXT NOT NULL,
+    isEdited BOOLEAN DEFAULT FALSE,
+    isDeleted BOOLEAN DEFAULT FALSE,
     sentAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (chatId) REFERENCES privateChats(id) ON DELETE CASCADE,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
@@ -57,7 +61,7 @@ CREATE TABLE chatNotifications (
     title VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
     link VARCHAR(255) DEFAULT NULL,
-    read TINYINT(1) DEFAULT 0,
+    isRead TINYINT(1) DEFAULT 0,
     priority ENUM('low', 'medium', 'high') DEFAULT 'medium',
     source ENUM('user', 'system', 'admin') DEFAULT 'user',
     expiresAt TIMESTAMP DEFAULT NULL,
@@ -74,7 +78,7 @@ CREATE TABLE groupChatVotes (
     voteType ENUM('upvote', 'downvote') NOT NULL,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uniqueVote (messageId, userId),
-    FOREIGN KEY (messageId) REFERENCES messages(id) ON DELETE CASCADE,
+    FOREIGN KEY (messageId) REFERENCES groupMessages(id) ON DELETE CASCADE,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
