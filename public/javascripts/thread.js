@@ -120,7 +120,7 @@ $(document).ready(() => {
          (response) => {
             if (response.success) {
                $('#success-block').text('Redirecting to threads...');
-               setTimeout(() => (window.location.href = `/threads`), 2000);
+               setTimeout(() => (window.location.href = `/threads`), 1000);
             }
          }
       );
@@ -159,9 +159,8 @@ $(document).ready(() => {
          'application/json',
          (response) => {
             if (response.success) {
-               const threadEl = $(`#thread-${threadId}`);
-               threadEl.find('.upvotes').text(response.details.updatedUpvotes);
-               threadEl.find('.downvotes').text(response.details.updatedDownvotes);
+               $('#thread-upvotes-count').text(response.details.updatedUpvotes);
+               $('#thread-downvotes-count').text(response.details.updatedDownvotes);
             } else {
                alert(response.error || 'Vote failed.');
                console.error('Vote failed:', response.error);

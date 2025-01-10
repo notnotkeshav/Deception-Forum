@@ -1,6 +1,7 @@
 $(document).ready(function () {
    const currentUserId = sessionStorage.getItem('userId');
    let createReplyQuill, editCommentQuill;
+
    if (document.getElementById('createReplyEditor')) {
       createReplyQuill = new Quill('#createReplyEditor', {
          theme: 'snow',
@@ -88,31 +89,31 @@ $(document).ready(function () {
       const locked = $('#thread-container').data('thread-locked');
 
       let commentHTML = `
-         <li id="comment-${comment.id}" style="margin-left: ${level * 20}px;">
+         <li id="comment-${comment.id}" style="margin-left: ${level * 20}px;" class="list-group-item">
              <p><strong>User ID ${comment.userId} Commented at:</strong> ${comment.createdAt}</p>
-             <div>${sanitizedContent}</div>
+             <div class="mb-2">${sanitizedContent}</div>
              <p>Upvotes: <span id="upvotes-${comment.id}">${comment.upvoteCount}</span>, Downvotes: <span id="downvotes-${comment.id}">${comment.downvoteCount}</span></p>
              ${isAuthorized && !locked ? `
-               <button class="edit-btn" data-comment-id="${comment.id}" data-comment="${sanitizedContent}">Edit</button>
-               <button class="delete-btn" data-comment-id="${comment.id}">Delete</button>
+               <button class="btn btn-warning btn-sm edit-btn" data-comment-id="${comment.id}" data-comment="${sanitizedContent}">Edit</button>
+               <button class="btn btn-danger btn-sm delete-btn" data-comment-id="${comment.id}">Delete</button>
             ` : ''}
             ${!locked ? `
-               <button class="reply-btn" data-comment-id="${comment.id}">Reply</button>
-               <button class="upvote-btn" data-comment-id="${comment.id}">Upvote</button>
-               <button class="downvote-btn" data-comment-id="${comment.id}">Downvote</button>
+               <button class="btn btn-info btn-sm reply-btn" data-comment-id="${comment.id}">Reply</button>
+               <button class="btn btn-success btn-sm upvote-btn" data-comment-id="${comment.id}">Upvote</button>
+               <button class="btn btn-danger btn-sm downvote-btn" data-comment-id="${comment.id}">Downvote</button>
             ` : `
-               <button disabled class="reply-btn">Reply</button>
-               <button disabled class="upvote-btn">Upvote</button>
-               <button disabled class="downvote-btn">Downvote</button>
+               <button disabled class="btn btn-info btn-sm">Reply</button>
+               <button disabled class="btn btn-success btn-sm">Upvote</button>
+               <button disabled class="btn btn-danger btn-sm">Downvote</button>
             `}
          `;
 
       if (comment.replies && comment.replies.length > 0) {
          commentHTML += `
-            <button class="show-replies-btn" data-comment-id="${comment.id}" data-level="${level + 1}" data-loaded="false">
+            <button class="btn btn-secondary btn-sm show-replies-btn" data-comment-id="${comment.id}" data-level="${level + 1}" data-loaded="false">
                Show Replies (${comment.replies.length})
             </button>
-            <ul class="replies-list" id="replies-for-${comment.id}" style="display: none;"></ul>
+            <ul class="list-group replies-list" id="replies-for-${comment.id}" style="display: none;"></ul>
          `;
       }
 
@@ -155,7 +156,6 @@ $(document).ready(function () {
          }
       }
    });
-
 
    $(document).on('click', '.delete-btn', function () {
       const commentId = $(this).data('comment-id');
@@ -266,7 +266,6 @@ $(document).ready(function () {
                loadComments();
                $('#edit-comment-section').hide();
                $('#create-reply-form').show();
-               editCommentQuill.root.innerHTML = '';
             } else {
                console.error('Failed to edit comment:', response.error);
             }
@@ -276,7 +275,6 @@ $(document).ready(function () {
          },
       });
    });
-
    $('#cancel-edit').click(function () {
       $('#edit-comment-section').hide();
       $('#create-reply-form').show();
@@ -328,6 +326,8 @@ $(document).ready(function () {
       });
    };
 
-
    loadComments();
+   setInterval(() => {
+      loadComments();
+   }, 10000);
 });

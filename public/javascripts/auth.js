@@ -1,4 +1,14 @@
 $(function () {
+   // Hide the error and success blocks before each submission
+   $('#error-block').empty().hide();
+   $('#success-block').empty().hide();
+   $('#error-block').on('click', function(){
+      $('#error-block').empty().hide();
+   })
+   $('#success-block').on('click', function(){
+      $('#success-block').empty().hide();
+   })
+
    function deleteCookies() {
       let allCookies = document.cookie.split(';');
       for (let i = 0; i < allCookies.length; i++)
@@ -56,6 +66,9 @@ $(function () {
 
    // Sign-in form submission
    $('#signinForm').on('submit', function (e) {
+
+      $('#error-block').empty().hide();
+      $('#success-block').empty().hide();
       e.preventDefault();
       const email = $('#email').val();
       const password = $('#password').val();
@@ -74,19 +87,28 @@ $(function () {
             password
          },
          success(response) {
-            if (response.details.session) {
-               sessionStorage.setItem('token', response.details.session.token);
-               sessionStorage.setItem('userId', response.details.session.userId);
-               sessionStorage.setItem('user', JSON.stringify(response.details.session.user));
+            if (response.success) {
+               $('#success-block').text('Signin successful!')
+                  .show(); // Show success block
+               if (response.details.session) {
+                  sessionStorage.setItem('token', response.details.session.token);
+                  sessionStorage.setItem('userId', response.details.session.userId);
+                  sessionStorage.setItem('user', JSON.stringify(response.details.session.user));
+                  setTimeout(() => {
+                     window.location.href = '/threads';
+                  }, 1000);
+               }
                setTimeout(() => {
                   window.location.href = '/threads';
-               }, 2000);
+               }, 1000);
             }
          },
          error(xhr) {
-            const errorMessage = xhr.responseJSON?.message || 'An error occurred during sign-in.';
-            $('#error-block').text(errorMessage);
-            console.error('Sign-in error:', xhr.responseJSON);
+            const error = xhr.responseJSON;
+            const errorMessage = error.message || 'Sign-up failed.';
+            $('#error-block').text(errorMessage).show();
+
+            console.error('Sign-up error:', error);
          }
       });
    });
@@ -94,6 +116,10 @@ $(function () {
    // Sign-up form submission
    $('#signupForm').on('submit', function (e) {
       e.preventDefault();
+
+      $('#error-block').empty().hide();
+      $('#success-block').empty().hide();
+
       const email = $('#email').val();
       const username = $('#username').val();
       const password = $('#password').val();
@@ -120,17 +146,18 @@ $(function () {
             inviteCode
          },
          success(response) {
-            $('#error-block').empty();
             if (response.success) {
-               $('#success-block').text(`Signup successful! Kindly check you mail box.`);
-               setTimeout(() => { window.location.href = '/threads' }, 1000)
+               $('#success-block').text('Signup successful! Kindly check your mailbox.')
+                  .show(); // Show success block
+               setTimeout(() => {
+                  window.location.href = '/threads';
+               }, 1000);
             }
          },
          error(xhr) {
-            $('#error-block').empty();
             const error = xhr.responseJSON;
             const errorMessage = error.message || 'Sign-up failed.';
-            $('#error-block').text(errorMessage);
+            $('#error-block').text(errorMessage).show(); // Show error block
 
             if (error.details?.length > 0) {
                const errorList = $('<ul></ul>');

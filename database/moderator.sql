@@ -7,9 +7,9 @@ CREATE TABLE moderators (
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE privileges (
+CREATE TABLE Access (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
-    moderatorId CHAR(36) NOT NULL UNIQUE, -- Each moderator gets a unique set of privileges
+    moderatorId CHAR(36) NOT NULL UNIQUE, -- Each moderator gets a unique set of access
     canBanUsers TINYINT(1) DEFAULT 0, -- 1 = true, 0 = false
     canDeletePosts TINYINT(1) DEFAULT 0,
     canEditPosts TINYINT(1) DEFAULT 0,

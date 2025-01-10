@@ -6,7 +6,7 @@
 
    <!-- Table to show invite codes -->
    <div class="table-responsive">
-      <table class="table table-bordered table-hover">
+      <table class="table table-bordered table-hover table-striped">
          <thead class="thead-dark">
             <tr>
                <th>Code</th>
@@ -27,19 +27,19 @@
                <?php endforeach; ?>
             <?php else : ?>
                <tr>
-                  <td colspan="5" class="text-center">No invite codes found.</td>
+                  <td colspan="5" class="text-center text-muted">No invite codes found.</td>
                </tr>
             <?php endif; ?>
          </tbody>
       </table>
    </div>
 
-   <!-- Button to generate new invite code --><br><br>
-   <div id="inviteCode" class="my-3">
-      <?= $inviteCode ?? "Click the button to generate an invite code." ?>
+   <!-- Button to generate new invite code -->
+   <div id="inviteCode" class="my-3 text-center">
+      <?= $inviteCode ?? "Click the button below to generate an invite code." ?>
    </div>
    <br>
-   <button id="generateInviteBtn" class="btn btn-primary">Generate Invite Code</button>
+   <button id="generateInviteBtn" class="btn btn-primary btn-lg d-block mx-auto">Generate Invite Code</button>
 </div>
 
 <?php require(base_path("/frontend/views/partials/footer.php")); ?>
@@ -81,3 +81,37 @@
       });
    });
 </script>
+
+<style>
+   .table th, .table td {
+      text-align: center;
+   }
+   .table th {
+      background-color: #343a40;
+      color: #fff;
+   }
+   .table td {
+      vertical-align: middle;
+   }
+   #generateInviteBtn {
+      transition: background-color 0.3s ease, transform 0.3s ease;
+   }
+   #generateInviteBtn:hover {
+      background-color: #0056b3;
+      transform: translateY(-3px);
+   }
+   #inviteCode {
+      font-size: 1.2em;
+      color: #333;
+      font-weight: 500;
+   }
+   .table-responsive {
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      padding: 10px;
+      background-color: #f9f9f9;
+   }
+   .text-muted {
+      color: #6c757d !important;
+   }
+</style>

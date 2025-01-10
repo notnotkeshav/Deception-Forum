@@ -31,14 +31,14 @@ require(base_path("/frontend/views/partials/navbar.php"));
         <h2>Your Threads:</h2>
         <div class="list-group">
             <?php foreach ($threads as $thread) { ?>
-                <div class="list-group-item">
+                <a href="/thread?id=<?php echo $thread['id']?>" class="list-group-item">
                     <h5 class="mb-1"><?php echo htmlspecialchars($thread['title']); ?></h5>
                     <div class="mb-1"><?php echo $thread['content']; ?></div>
                     <small>Views: <?php echo htmlspecialchars($thread['viewsCount']); ?> | 
                            Upvotes: <?php echo htmlspecialchars($thread['upvoteCount']); ?> | 
                            Downvotes: <?php echo htmlspecialchars($thread['downvoteCount']); ?> | 
                            Status: <?php echo htmlspecialchars($thread['status']); ?></small>
-                </div>
+                </a>
             <?php } ?>
         </div>
     </div>
