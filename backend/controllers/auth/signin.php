@@ -120,7 +120,7 @@ if ($method === 'GET') {
             };
 
             $cache->set($lockoutKey, $currentTime + $lockoutDuration);
-            $lockouts = $cache->get($lockoutsKey) ?? 0;
+            $lockouts = $cache->get($lockoutsKey)['value'] ?? 0;
             $cache->set($lockoutsKey, $lockouts + 1);
 
             // Permanently lock the account if lockout attempts exceed the limit
@@ -147,6 +147,6 @@ if ($method === 'GET') {
    } catch (Exception $e) {
       $db->rollBack();
       error_log($e->getMessage());
-      sendJsonResponse(false, $e->getMessage(), [], 500);
+      sendJsonResponse(false, $e->getMessage(), [], ($e->getCode() > 100 && $e->getCode() < 600) ? $e->getCode() : 500);
    }
 }
