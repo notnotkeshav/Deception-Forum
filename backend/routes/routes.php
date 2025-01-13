@@ -36,29 +36,30 @@ $router->put("/comment/vote", "comments/vote.php")->only('auth'); // Vote on a c
 $router->get("/notifications", "notifications/all.php")->only('auth'); // View notifications (only for authenticated users)
 $router->post("/notifications/subscribe", "notifications/subscribe.php")->only('auth'); // Subscribe to notifications
 $router->post("/notifications/unsubscribe", "notifications/unsubscribe.php")->only('auth'); // Unsubscribe from notifications
+$router->get("/private-chat/notifications", "notifications/privateChats.php")->only('auth'); // View notifications for private chats
+$router->get("/group-chat/notifications", "notifications/groupChats.php")->only('auth'); // View notifications for group chats
 // Moderator Locking Routes
 $router->put("/thread/lock", "moderators/lock.php")->only('admin'); // Lock a thread (only for admin)
 // Private Chat Routes
-$router->get("/private-chats", "privateChats/all.php")->only('auth'); // List all private chats
-$router->get("/private-chat", "privateChats/chat.php")->only('auth'); // /private-chat?id=aaa-bbb-ccc-ddd
-$router->post("/private-chat", "privateChats/create.php")->only('auth'); // Start a new private chat
-$router->post("/private-chat/message", "privateChats/message.php")->only('auth'); // Send a message in a private chat
-$router->put("/private-chat/message", "privateChats/editMessage.php")->only('auth'); // Edit a private chat message
-$router->delete("/private-chat/message", "privateChats/deleteMessage.php")->only('auth'); // Delete a private chat message
-$router->put("/private-chat/vote", "privateChats/vote.php")->only('auth'); // Vote on a private chat message
-$router->get("/private-chat/notifications", "privateChats/notifications.php")->only('auth'); // View notifications for private chats
+$router->get("/private-chats", "chats/private/all.php")->only('auth'); // List all private chats
+$router->get("/private-chat/new", "chats/private/create.php")->only('auth'); // Start a new private chat
+$router->post("/private-chat/new", "chats/private/create.php")->only('auth'); // Start a new private chat
+$router->get("/private-chat", "chats/private/chat.php")->only('auth'); // /private-chat?id=aaa-bbb-ccc-ddd
+$router->post("/private-chat/message", "chats/private/message/create.php")->only('auth'); // Send a message in a private chat
+$router->put("/private-chat/message", "chats/private/message/edit.php")->only('auth'); // Edit a private chat message
+$router->delete("/private-chat/message", "chats/private/message/delete.php")->only('auth'); // Delete a private chat message
+$router->put("/private-chat/vote", "chats/private/vote.php")->only('auth'); // Vote on a private chat message
 // Group Chat Routes
-$router->get("/group-chats", "groupChats/all.php")->only('auth'); // List all group chats
-$router->get("/group-chat", "groupChats/chat.php")->only('auth'); // /group-chat?id=aaa-bbb-ccc-ddd
-$router->post("/group-chat", "groupChats/create.php")->only('auth'); // Create a new group chat
-$router->post("/group-chat/message", "groupChats/message.php")->only('auth'); // Send a message in a group chat
-$router->put("/group-chat/message", "groupChats/editMessage.php")->only('auth'); // Edit a group chat message
-$router->delete("/group-chat/message", "groupChats/deleteMessage.php")->only('auth'); // Delete a group chat message
-$router->put("/group-chat/vote", "groupChats/vote.php")->only('auth'); // Vote on a group chat message
-$router->get("/group-chat/notifications", "groupChats/notifications.php")->only('auth'); // View notifications for group chats
-$router->post("/group-chat/member", "groupChats/addMember.php")->only('auth'); // Add a member to a group chat
-$router->put("/group-chat/member", "groupChats/updateMember.php")->only('auth'); // Update a member's role in the group chat
-$router->delete("/group-chat/member", "groupChats/removeMember.php")->only('auth'); // Remove a member from a group chat
+$router->get("/group-chats", "chats/group/all.php")->only('auth'); // List all group chats
+$router->get("/group-chat", "chats/group/chat.php")->only('auth'); // /group-chat?id=aaa-bbb-ccc-ddd
+$router->post("/group-chat", "chats/group/create.php")->only('auth'); // Create a new group chat
+$router->post("/group-chat/message", "chats/group/message/create.php")->only('auth'); // Send a message in a group chat
+$router->put("/group-chat/message", "chats/group/message/edit.php")->only('auth'); // Edit a group chat message
+$router->delete("/group-chat/message", "chats/group/message/delete.php")->only('auth'); // Delete a group chat message
+$router->put("/group-chat/vote", "chats/group/vote.php")->only('auth'); // Vote on a group chat message
+$router->post("/group-chat/member", "chats/group/member/add.php")->only('auth'); // Add a member to a group chat
+$router->put("/group-chat/member", "chats/group/member/update.php")->only('auth'); // Update a member's role in the group chat
+$router->delete("/group-chat/member", "chats/group/member/remove.php")->only('auth'); // Remove a member from a group chat
 // Credit Maintaining Routes
 // User Profiles Routes
 $router->get("/user", "user/details.php")->only('auth');  // View user details (only for authenticated users)
