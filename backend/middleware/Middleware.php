@@ -20,7 +20,6 @@ class Middleware
       if (!$middleware) {
          throw new \Exception("No matching middleware founr for key {$key}.");
       }
-      session_start();
       (new $middleware)->handle();
    }
 }

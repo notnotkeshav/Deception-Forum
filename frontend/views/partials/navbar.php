@@ -28,7 +28,7 @@
                <a class="nav-link" href="/group-chats">Group Chats</a>
             </li>
             <!-- Authentication Links -->
-            <?php if (isset($_SESSION['userId'])): ?>
+            <?php if (!isset($_SESSION['userId'])): ?>
                <li class="nav-item mt-1">
                   <a class="btn btn-outline-secondary btn-sm ms-3 px-4 fw-bold" href="/signin">Sign In</a>
                </li>
