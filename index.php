@@ -5,20 +5,20 @@ use Backend\Routes\Router;
 
 session_start();
 const BASE_PATH = __DIR__ . "/";
-require(BASE_PATH . "backend/utils/functions.php");
+require(BASE_PATH . "Backend/Utils/functions.php");
 
-loadEnv(base_path("backend/core/.env"));
+loadEnv(base_path("Backend/Core/.env"));
 
 spl_autoload_register(function ($class) {
    $class =  str_replace('\\', '/', $class);
    require(base_path($class . ".php"));
 });
 
-require(base_path("backend/core/bootstrap.php"));
-require(base_path("backend/utils/auth/generator.php"));
+require(base_path("Backend/Core/bootstrap.php"));
+require(base_path("Backend/Utils/auth/generator.php"));
 
 $router = new Router();
-require base_path("backend/routes/routes.php");
+require base_path("Backend/Routes/routes.php");
 $uri = parse_url($_SERVER['REQUEST_URI'])['path'];
 $method = $_POST['_method'] ?? $_SERVER['REQUEST_METHOD'];
 try {

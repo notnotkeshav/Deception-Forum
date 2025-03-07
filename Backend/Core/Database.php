@@ -33,6 +33,7 @@ class Database
                 PDO::ATTR_EMULATE_PREPARES => false
             ]);
             $this->connections[] = $pdo; // Store the connection in the pool
+            
             return $pdo;
         }
 

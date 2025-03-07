@@ -147,6 +147,6 @@ if ($method === 'GET') {
    } catch (Exception $e) {
       $db->rollBack();
       error_log($e->getMessage());
-      sendJsonResponse(false, $e->getMessage(), [], ($e->getCode() > 100 && $e->getCode() < 600) ? $e->getCode() : 500);
+      sendJsonResponse(false, $e->getMessage(), [], (int)($e->getCode() > 100 && $e->getCode() < 600) ? $e->getCode() : 500);
    }
 }

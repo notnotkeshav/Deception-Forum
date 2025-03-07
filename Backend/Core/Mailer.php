@@ -58,8 +58,6 @@ class Mailer
    private function prepareHeaders($to, $subject, $headers)
    {
       $headerString = "From: {$this->fromName} <{$this->fromEmail}>\r\n";
-      $headerString .= "To: <$to>\r\n";
-      $headerString .= "Subject: $subject\r\n";
       $headerString .= "MIME-Version: 1.0\r\n";
 
       foreach ($headers as $key => $value) {

@@ -14,17 +14,17 @@ $container->bind('Core\Cache', function () {
 });
 
 $container->bind('Core\Database', function () use ($container) {
-   $config = require base_path("backend/core/config.php");
+   $config = require base_path("Backend/Core/config.php");
    return new Database($config['database'], getenv("DB_USERNAME"), getenv("DB_PASSWORD"), $container->resolve('Core\Cache'));
 });
 
 $container->bind('Core\Mailer', function () {
-   $config = require base_path("backend/core/config.php");
+   $config = require base_path("Backend/Core/config.php");
    return new Mailer($config['mailer']);
 });
 
 $container->bind('Core\TemplateLoader', function () {
-   $templateDir = base_path("backend/core/mail-templates");
+   $templateDir = base_path("Backend/Core/mail-templates");
    return new TemplateLoader($templateDir);
 });
 

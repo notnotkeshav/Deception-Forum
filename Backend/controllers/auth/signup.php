@@ -36,21 +36,21 @@ if ($method === 'GET') {
         $cache->clearExpired();
         $cachedInviteCode = $cache->get("invitecode:" . $params['invite']);
 
-        if (!$cachedInviteCode || !is_array($cachedInviteCode)) {
-            $stmt = $db->query("SELECT * FROM inviteCodes WHERE code = :code AND used = 0", [":code" => $params['invite']]);
-            $inviteCode = $db->getOne($stmt);
+        // if (!$cachedInviteCode || !is_array($cachedInviteCode)) {
+        //     $stmt = $db->query("SELECT * FROM inviteCodes WHERE code = :code AND used = 0", [":code" => $params['invite']]);
+        //     $inviteCode = $db->getOne($stmt);
 
-            if (!$inviteCode) {
-                sendJsonResponse(false, "Invalid Invite Code", ["inviteCode" => $params['invite']], 404);
-            }
+        //     if (!$inviteCode) {
+        //         sendJsonResponse(false, "Invalid Invite Code", ["inviteCode" => $params['invite']], 404);
+        //     }
 
-            $cache->set("invitecode:" . $params['invite'], $inviteCode);
-        } else {
-            if ($cachedInviteCode['value']['used'] == 1) {
-                sendJsonResponse(false, "Invite Code has already been used", ["inviteCode" => $params['invite']], 410);
-            }
-            $inviteCode = $cachedInviteCode['value']['code'];
-        }
+        //     $cache->set("invitecode:" . $params['invite'], $inviteCode);
+        // } else {
+        //     if ($cachedInviteCode['value']['used'] == 1) {
+        //         sendJsonResponse(false, "Invite Code has already been used", ["inviteCode" => $params['invite']], 410);
+        //     }
+        //     $inviteCode = $cachedInviteCode['value']['code'];
+        // }
 
         // Validate email
         if (!Validator::email($_POST['email'])) {
@@ -115,10 +115,10 @@ if ($method === 'GET') {
         ]);
 
         // Update the invite code as used
-        $db->query("UPDATE inviteCodes SET used = 1, usedBy = :userId WHERE code = :inviteCode", [
-            ":userId" => $lastUserId,
-            ":inviteCode" => $params['invite']
-        ]);
+        // $db->query("UPDATE inviteCodes SET used = 1, usedBy = :userId WHERE code = :inviteCode", [
+        //     ":userId" => $lastUserId,
+        //     ":inviteCode" => $params['invite']
+        // ]);
 
         // Update the invite code in the cache
         $updatedInviteCode = [
@@ -126,30 +126,29 @@ if ($method === 'GET') {
             'used' => 1,
             'usedBy' => $lastUserId
         ];
-        $cache->delete("invitecode:" . $params['invite']);
-        $cache->set("invitecode:" . $params['invite'], $updatedInviteCode);
-
-        // Commit the transaction
-        $db->commit();
+        // $cache->delete("invitecode:" . $params['invite']);
+        // $cache->set("invitecode:" . $params['invite'], $updatedInviteCode);
 
         // Generate the login URL
         $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
         $loginurl = $protocol . "://" . $_SERVER['HTTP_HOST'] . "/signin?code=" . $generatedCode;
-
+        
         $currentYear = date('Y');
         $emailBody = $templateLoader->render('signupSuccess.html', [
             'name' => $_POST['name'],
             'loginUrl' => $loginurl,
             'year' => $currentYear
         ]);
-
+        
         // Send the email using the mailer
         $mailer->sendHTML(
             $_POST['email'],            // User's email address
             "Signup Successful",        // Email subject
             $emailBody                  // HTML email body
         );
-
+        
+        // Commit the transaction
+        $db->commit();
 
         // Respond with success
         sendJsonResponse(true, "User registration successful", 201);
