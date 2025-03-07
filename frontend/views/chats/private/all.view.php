@@ -6,5 +6,5 @@ if (sizeof($chats) > 0) {
    echo "No chats found";
 }
 ?>
-<br>
-<a href="/private-chat/new">Let's Start </a>
+
+<a href="/private-chat">Let's Start </a>

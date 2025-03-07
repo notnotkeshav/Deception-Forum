@@ -1,6 +1,0 @@
-User-Agent Analysis =>
-Canvas & Mouse movement and interaction tracking =>
-user scrolling behavior =>
-Key-Stroke tracking => 
-
-TLS encrypted => AES, RSA, SHA etc.
