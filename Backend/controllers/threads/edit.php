@@ -26,9 +26,9 @@ if ($method === 'GET') {
                     cat.id AS category_id, cat.name AS category_name,
                     img.imageUrl AS image_url
              FROM threads t
-             LEFT JOIN threadcategorylink tcl ON t.id = tcl.threadId
+             LEFT JOIN threadCategoryLink tcl ON t.id = tcl.threadId
              LEFT JOIN categories cat ON tcl.categoryId = cat.id
-             LEFT JOIN threadimages img ON t.id = img.threadId
+             LEFT JOIN threadImages img ON t.id = img.threadId
              WHERE t.id = :id AND t.isDeleted = 0",
       [":id" => $threadId]
    );
@@ -127,21 +127,21 @@ if ($method === 'GET') {
          }
 
          // Update thread-category link
-         $db->query("DELETE FROM threadcategorylink WHERE threadId = :threadId", [":threadId" => $threadId]);
+         $db->query("DELETE FROM threadCategoryLink WHERE threadId = :threadId", [":threadId" => $threadId]);
 
          $db->query(
-            "INSERT INTO threadcategorylink (threadId, categoryId) VALUES (:threadId, :categoryId)",
+            "INSERT INTO threadCategoryLink (threadId, categoryId) VALUES (:threadId, :categoryId)",
             [":threadId" => $threadId, ":categoryId" => $categoryId]
          );
       }
 
       // Update images
       if (isset($data['images'])) {
-         $db->query("DELETE FROM threadimages WHERE threadId = :threadId", [":threadId" => $threadId]);
+         $db->query("DELETE FROM threadImages WHERE threadId = :threadId", [":threadId" => $threadId]);
 
          foreach ($data['images'] as $imageUrl) {
             $db->query(
-               "INSERT INTO threadimages (threadId, imageUrl) VALUES (:threadId, :imageUrl)",
+               "INSERT INTO threadImages (threadId, imageUrl) VALUES (:threadId, :imageUrl)",
                [":threadId" => $threadId, ":imageUrl" => $imageUrl]
             );
          }

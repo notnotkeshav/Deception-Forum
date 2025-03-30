@@ -26,9 +26,9 @@ if ($method === 'GET') {
                         cat.id AS category_id, cat.name AS category_name,
                         img.id AS image_id, img.imageUrl AS image_url
                  FROM threads t
-                 LEFT JOIN threadcategorylink tcl ON t.id = tcl.threadId
+                 LEFT JOIN threadCategoryLink tcl ON t.id = tcl.threadId
                  LEFT JOIN categories cat ON tcl.categoryId = cat.id
-                 LEFT JOIN threadimages img ON t.id = img.threadId
+                 LEFT JOIN threadImages img ON t.id = img.threadId
                  WHERE t.id = :id AND t.isDeleted = 0",
             [":id" => $threadId]
          );

@@ -65,16 +65,18 @@ if ($method === "GET") {
             $db->query("INSERT INTO categories (name) VALUES (:name)", [':name' => $category]);
             $stmt = $db->query("SELECT id FROM categories WHERE name = :name LIMIT 1", [':name' => $category]);
             $categoryId = $db->getOne($stmt)['id'];
+
+            if (!$categoryId) {
+               sendJsonResponse(false, "Failed to create new category.", [], 500);
+            }
          }
          $cache->set('category:' . $category, $categoryId);
       }
 
-      if (is_null($categoryId)) {
-         sendJsonResponse(false, "Invalid category ID.", [], 400);
-      }
+      error_log("Category ID: " . $categoryId);
 
       // Link thread to category
-      $db->query("INSERT INTO threadcategorylink (threadId, categoryId) VALUES (:threadId, :categoryId)", [
+      $db->query("INSERT INTO threadCategoryLink (threadId, categoryId) VALUES (:threadId, :categoryId)", [
          ':threadId' => $threadId,
          ':categoryId' => $categoryId
       ]);
@@ -84,7 +86,7 @@ if ($method === "GET") {
       if (!empty($imageUrls)) {
          foreach ($imageUrls as $imageUrl) {
             if (!empty($imageUrl)) {
-               $db->query("INSERT INTO threadimages (threadId, imageUrl) VALUES (:threadId, :imageUrl)", [
+               $db->query("INSERT INTO threadImages (threadId, imageUrl) VALUES (:threadId, :imageUrl)", [
                   ':threadId' => $threadId,
                   ':imageUrl' => $imageUrl
                ]);
