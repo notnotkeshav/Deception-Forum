@@ -1,24 +1,23 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($heading) ?></title>
-</head>
-<body>
-    <h1><?= htmlspecialchars($heading) ?></h1>
+<?php require(base_path("/frontend/views/partials/header.php")); ?>
+<?php require(base_path("/frontend/views/partials/navbar.php")); ?>
 
-    <form action="/private-chat/new" method="POST">
-        <label for="recipientId">Select a User:</label>
-        <select id="recipientId" name="recipientId" required>
-            <option value="" disabled selected>Choose a user</option>
-            <?php foreach ($users as $user): ?>
-                <option value="<?= htmlspecialchars($user['id']) ?>">
-                    <?= htmlspecialchars($user['username']) ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-        <button type="submit">Start Chat</button>
+<div class="container mt-4">
+    <h1 class="text-center"><?= htmlspecialchars($heading) ?></h1>
+
+    <form action="/private-chat/new" method="POST" class="mt-3">
+        <div class="mb-3">
+            <label for="recipientId" class="form-label">Select a User:</label>
+            <select id="recipientId" name="recipientId" class="form-select" required>
+                <option value="" disabled selected>Choose a user</option>
+                <?php foreach ($users as $user): ?>
+                    <option value="<?= htmlspecialchars($user['id']) ?>">
+                        <?= htmlspecialchars($user['username']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-success w-100">Start Chat</button>
     </form>
-</body>
-</html>
+</div>
+
+<?php require(base_path("/frontend/views/partials/footer.php")); ?>

@@ -45,6 +45,8 @@ $router->get("/private-chats", "chats/private/all.php")->only('auth'); // List a
 $router->get("/private-chat/new", "chats/private/create.php")->only('auth'); // Start a new private chat
 $router->post("/private-chat/new", "chats/private/create.php")->only('auth'); // Start a new private chat
 $router->get("/private-chat", "chats/private/chat.php")->only('auth'); // /private-chat?id=aaa-bbb-ccc-ddd
+$router->get("/private-chat/messages", "chats/private/message/get.php")->only('auth'); // /private-chat/messages?id=aaa-bbb-ccc-ddd
+$router->get("/private-chat/messages/new", "chats/private/message/poll.php")->only('auth'); // /private-chat/messages/new?id=aaa-bbb-ccc-ddd
 $router->post("/private-chat/message", "chats/private/message/create.php")->only('auth'); // Send a message in a private chat
 $router->put("/private-chat/message", "chats/private/message/edit.php")->only('auth'); // Edit a private chat message
 $router->delete("/private-chat/message", "chats/private/message/delete.php")->only('auth'); // Delete a private chat message
@@ -55,7 +57,7 @@ $router->get("/group-chat", "chats/group/chat.php")->only('auth'); // /group-cha
 $router->post("/group-chat", "chats/group/create.php")->only('auth'); // Create a new group chat
 $router->post("/group-chat/message", "chats/group/message/create.php")->only('auth'); // Send a message in a group chat
 $router->put("/group-chat/message", "chats/group/message/edit.php")->only('auth'); // Edit a group chat message
-$router->delete("/group-chat/message", "chats/group/message/delete.php")->only('auth'); // Delete a group chat message
+// $router->delete("/group-chat/message", "chats/group/message/delete.php")->only('auth'); // Delete a group chat message
 $router->put("/group-chat/vote", "chats/group/vote.php")->only('auth'); // Vote on a group chat message
 $router->post("/group-chat/member", "chats/group/member/add.php")->only('auth'); // Add a member to a group chat
 $router->put("/group-chat/member", "chats/group/member/update.php")->only('auth'); // Update a member's role in the group chat

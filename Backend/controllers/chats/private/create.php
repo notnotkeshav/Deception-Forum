@@ -4,56 +4,52 @@ use Backend\Core\App;
 
 $db = App::container()->resolve('Core\Database');
 
-// Ensure the user is logged in
 if (!isset($_SESSION['userId'])) {
-    http_response_code(401);
-    echo "Unauthorized access.";
-    exit;
+    sendJsonResponse(false, "Unauthorized access", [], 401);
 }
 
 $userId = $_SESSION['userId'];
 
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+if ($method === 'GET') {
     // Fetch all users except the current user
     $query = "SELECT id, username FROM users WHERE id != :userId";
     $stmt = $db->query($query, [':userId' => $userId]);
     $users = $db->getAll($stmt);
 
     // Render the view
-    http_response_code(200);
     view("chats/private/create.view.php", [
         "heading" => "Start a New Private Chat",
         "users" => $users
     ]);
-} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+} elseif ($method === 'POST') {
     // Handle chat creation
     $recipientId = $_POST['recipientId'] ?? null;
 
     if (!$recipientId) {
-        http_response_code(400);
-        echo "Recipient ID is required.";
-        exit;
+        sendJsonResponse(false, "Recipient ID is required.", [], 400);
     }
 
     try {
+
+        $db->beginTransaction();
         // Check if chat already exists
         $query = "
             SELECT id 
             FROM privateChats 
             WHERE (user1Id = :user1 AND user2Id = :user2) 
-               OR (user1Id = :user2 AND user2Id = :user1)
+               OR (user1Id = :user3 AND user2Id = :user4)
         ";
         $stmt = $db->query($query, [
             ':user1' => $userId,
             ':user2' => $recipientId,
-            ':user2' => $recipientId,
-            ':user1' => $userId,
+            ':user3' => $recipientId,
+            ':user4' => $userId
         ]);
-        $existingChat = $db->getFirst($stmt);
+
+        $existingChat = $db->getOne($stmt);
 
         if ($existingChat) {
-            echo "Chat already exists with ID: " . htmlspecialchars($existingChat['id']);
-            exit;
+            sendJsonResponse(false, "Chat already exists.", ["chatId" => $existingChat['id']], 200);
         }
 
         // Create a new chat
@@ -63,14 +59,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             ':user2' => $recipientId
         ]);
 
-        echo "Chat created successfully.";
+        $db->commit();
+        sendJsonResponse(true, "Chat created successfully.", [], 201);
     } catch (Exception $e) {
-        http_response_code(500);
+        $db->rollBack();
         error_log("An error occurred: " . $e->getMessage());
-        echo $e->getMessage();
+        sendJsonResponse(false, "Server error occurred.", ["error" => $e->getMessage()], 500);
     }
 } else {
-    http_response_code(405);
-    echo "Invalid HTTP method.";
-    exit;
+    sendJsonResponse(false, "Invalid HTTP method.", [], 405);
 }

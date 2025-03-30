@@ -7,7 +7,7 @@ $db = App::container()->resolve('Core\Database');
 if ($method === 'GET') {
     $userId = $_SESSION['userId'];
 
-    $query = "SELECT * from privateChatMessages";
+    $query = "SELECT * from privateChats";
     $stmt = $db->query($query, []);
 
     $chats = $db->getAll($stmt);

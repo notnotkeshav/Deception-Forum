@@ -12,7 +12,10 @@ if ($method === 'POST') {
         sendJsonResponse(false, "Chat ID and message are required", [], 400);
     }
 
-    $userId = $_SESSION['userId'];
+    $userId = $_SESSION['userId'] ?? null;
+    if (!$userId) {
+        sendJsonResponse(false, "Unauthorized", [], 401);
+    }
 
     $query = "INSERT INTO privateChatMessages (chatId, userId, message) 
               VALUES (:chatId, :userId, :message)";
