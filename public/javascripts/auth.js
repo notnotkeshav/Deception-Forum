@@ -2,10 +2,10 @@ $(function () {
    // Hide the error and success blocks before each submission
    $('#error-block').empty().hide();
    $('#success-block').empty().hide();
-   $('#error-block').on('click', function(){
+   $('#error-block').on('click', function () {
       $('#error-block').empty().hide();
    })
-   $('#success-block').on('click', function(){
+   $('#success-block').on('click', function () {
       $('#success-block').empty().hide();
    })
 
