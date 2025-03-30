@@ -1,6 +1,9 @@
 $(document).ready(function () {
    const currentUserId = sessionStorage.getItem('userId');
    let createReplyQuill, editCommentQuill;
+   let isUserInteracting = false;
+   let expandedReplies = new Set();
+   let pollingTimer;
 
    if (document.getElementById('createReplyEditor')) {
       createReplyQuill = new Quill('#createReplyEditor', {
@@ -30,13 +33,42 @@ $(document).ready(function () {
       });
    }
 
-   const loadComments = () => {
+   // Track user interaction with comments
+   $(document).on('mouseenter', '#comments-list', function () {
+      isUserInteracting = true;
+   });
+
+   $(document).on('mouseleave', '#comments-list', function () {
+      isUserInteracting = false;
+   });
+
+   // Track expanded replies
+   const updateExpandedRepliesState = () => {
+      expandedReplies.clear();
+      $('.show-replies-btn').each(function () {
+         const commentId = $(this).data('comment-id');
+         const isExpanded = $(`#replies-for-${commentId}`).is(':visible');
+         if (isExpanded) {
+            expandedReplies.add(commentId);
+         }
+      });
+   };
+
+   const loadComments = (forceRefresh = false) => {
       const threadId = $('#thread-container').data('thread-id');
 
       if (!threadId) {
          console.error('Thread ID not found.');
          return;
       }
+
+      // Don't refresh if user is interacting, unless force refresh is requested
+      if (isUserInteracting && !forceRefresh) {
+         return;
+      }
+
+      // Save current expanded state before refreshing
+      updateExpandedRepliesState();
 
       $.ajax({
          url: `/comments?threadId=${threadId}`,
@@ -46,8 +78,32 @@ $(document).ready(function () {
             if (response.success) {
                const comments = response.details.comments;
                sessionStorage.setItem(`comments-thread-${threadId}`, JSON.stringify(comments));
-
                renderComments(comments);
+
+               // Restore expanded replies state
+               expandedReplies.forEach(commentId => {
+                  const button = $(`.show-replies-btn[data-comment-id="${commentId}"]`);
+                  if (button.length) {
+                     const repliesList = $(`#replies-for-${commentId}`);
+                     const level = button.data('level');
+
+                     // Load replies content if not already loaded
+                     if (button.data('loaded') !== true) {
+                        const parentComment = findCommentById(comments, commentId);
+                        if (parentComment && parentComment.replies) {
+                           parentComment.replies.forEach((reply) => {
+                              const replyHTML = renderComment(reply, level);
+                              repliesList.append(replyHTML);
+                           });
+                           button.data('loaded', true);
+                        }
+                     }
+
+                     // Show the replies and update button text
+                     repliesList.show();
+                     button.text('Hide Replies');
+                  }
+               });
             } else {
                console.error('Failed to load comments.');
             }
@@ -146,13 +202,18 @@ $(document).ready(function () {
          $(this).data('loaded', true);
          repliesList.show();
          $(this).text('Hide Replies');
+
+         // Update expanded replies set
+         expandedReplies.add(commentId);
       } else {
          if (repliesList.is(':visible')) {
             repliesList.hide();
             $(this).text(`Show Replies (${repliesList.children().length})`);
+            expandedReplies.delete(commentId);
          } else {
             repliesList.show();
             $(this).text('Hide Replies');
+            expandedReplies.add(commentId);
          }
       }
    });
@@ -169,7 +230,7 @@ $(document).ready(function () {
             data: JSON.stringify({ commentId }),
             success: function (response) {
                if (response.success) {
-                  loadComments();
+                  loadComments(true); // Force refresh after deletion
                } else {
                   console.error('Error from server:', response.error);
                }
@@ -205,7 +266,7 @@ $(document).ready(function () {
          },
          success: (response) => {
             if (response.success) {
-               loadComments();
+               loadComments(true); // Force refresh after post
                createReplyQuill.root.innerHTML = '';
                $('#parentCommentId').val('');
             } else {
@@ -263,7 +324,7 @@ $(document).ready(function () {
          data: JSON.stringify({ commentId, comment }),
          success: (response) => {
             if (response.success) {
-               loadComments();
+               loadComments(true); // Force refresh after edit
                $('#edit-comment-section').hide();
                $('#create-reply-form').show();
             } else {
@@ -275,6 +336,7 @@ $(document).ready(function () {
          },
       });
    });
+
    $('#cancel-edit').click(function () {
       $('#edit-comment-section').hide();
       $('#create-reply-form').show();
@@ -326,8 +388,31 @@ $(document).ready(function () {
       });
    };
 
-   loadComments();
-   setInterval(() => {
+   // Smart polling system
+   const setupPolling = () => {
+      // Initial load
       loadComments();
-   }, 10000);
+
+      // Start polling with intelligent behavior
+      pollingTimer = setInterval(() => {
+         // Only refresh if user is not actively interacting with comments
+         if (!isUserInteracting) {
+            loadComments();
+         }
+      }, 5000);
+
+      // Add visibility change handling to pause polling when tab is not visible
+      document.addEventListener('visibilitychange', () => {
+         if (document.hidden) {
+            clearInterval(pollingTimer);
+         } else {
+            // Resume polling when tab becomes visible again
+            loadComments();
+            setupPolling();
+         }
+      });
+   };
+
+   // Initialize the smart polling
+   setupPolling();
 });
