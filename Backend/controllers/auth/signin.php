@@ -93,7 +93,7 @@ if ($method === 'GET') {
             $_SESSION['userId'] = $user['id'];
             $_SESSION['user'] = $user;
 
-            $stmt = $db->query("SELECT id, role FROM MODERATORS WHERE userId = :userId", [":userId" => $_SESSION['userId']]);
+            $stmt = $db->query("SELECT id, role FROM moderators WHERE userId = :userId", [":userId" => $_SESSION['userId']]);
             $response = $db->getOne($stmt);
             if ($response) {
                $_SESSION['moderator'] = true;
