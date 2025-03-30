@@ -67,12 +67,13 @@ function getRequestBody()
    return $data;
 }
 
-function sendJsonResponse($success, $message, $details = [], $httpCode = 200) {
-   http_response_code($httpCode);
+function sendJsonResponse($success, $message, $details = [], $httpCode = 200)
+{
+   http_response_code((int) ($httpCode));
    echo json_encode([
-       "success" => $success,
-       "message" => $message,
-       "details" => $details
+      "success" => $success,
+      "message" => $message,
+      "details" => $details
    ]);
    exit();
 }
