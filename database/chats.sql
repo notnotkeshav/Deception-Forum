@@ -71,7 +71,7 @@ CREATE TABLE chatNotifications (
     UNIQUE KEY uniq_chat_notification (userId, chatId, eventType)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE groupChatVotes (
+CREATE TABLE groupMessageVotes (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
     messageId CHAR(36) NOT NULL,
     userId CHAR(36) NOT NULL,
