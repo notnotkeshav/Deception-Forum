@@ -2,7 +2,7 @@ $(document).ready(function () {
     const currentUserId = sessionStorage.getItem('userId');
     let createReplyQuill, editCommentQuill;
     let isUserInteracting = false;
-    let expandedReplies = new Set();
+    let expandedReplies = new Map();
     let pollingTimer;
 
     if (document.getElementById('createReplyEditor')) {
@@ -42,16 +42,35 @@ $(document).ready(function () {
         isUserInteracting = false;
     });
 
-    // Track expanded replies
+    // Track expanded replies with their nesting level
     const updateExpandedRepliesState = () => {
         expandedReplies.clear();
         $('.show-replies-btn').each(function () {
             const commentId = $(this).data('comment-id');
+            const level = parseInt($(this).data('level'));
             const isExpanded = $(`#replies-for-${commentId}`).is(':visible');
             if (isExpanded) {
-                expandedReplies.add(commentId);
+                expandedReplies.set(commentId, level);
             }
         });
+        
+        // Store expanded state in sessionStorage
+        const threadId = (new URLSearchParams(window.location.search)).get('id');
+        if (threadId) {
+            sessionStorage.setItem(`expanded-replies-${threadId}`, 
+                JSON.stringify(Array.from(expandedReplies.entries())));
+        }
+    };
+
+    // Load expanded replies state from sessionStorage
+    const loadExpandedRepliesState = () => {
+        const threadId = (new URLSearchParams(window.location.search)).get('id');
+        if (threadId) {
+            const storedExpandedReplies = sessionStorage.getItem(`expanded-replies-${threadId}`);
+            if (storedExpandedReplies) {
+                expandedReplies = new Map(JSON.parse(storedExpandedReplies));
+            }
+        }
     };
 
     const loadComments = (forceRefresh = false) => {
@@ -86,17 +105,17 @@ $(document).ready(function () {
                     renderComments(comments);
 
                     // Restore expanded replies state
-                    expandedReplies.forEach(commentId => {
+                    expandedReplies.forEach((level, commentId) => {
                         const button = $(`.show-replies-btn[data-comment-id="${commentId}"]`);
                         if (button.length) {
                             const repliesList = $(`#replies-for-${commentId}`);
-                            const level = button.data('level');
 
                             // Load replies content if not already loaded
                             if (button.data('loaded') !== true) {
                                 const parentComment = findCommentById(comments, commentId);
                                 if (parentComment && parentComment.replies) {
                                     parentComment.replies.forEach((reply) => {
+                                        // Use the stored level when rendering
                                         const replyHTML = renderComment(reply, level);
                                         repliesList.append(replyHTML);
                                     });
@@ -139,6 +158,22 @@ $(document).ready(function () {
         return null;
     };
 
+    // Get the comment's actual nesting level by traversing its parent chain
+    const calculateCommentNestingLevel = (comments, commentId, currentLevel = 0) => {
+        for (let comment of comments) {
+            if (comment.id === commentId) {
+                return currentLevel;
+            }
+            if (comment.replies && comment.replies.length > 0) {
+                const level = calculateCommentNestingLevel(comment.replies, commentId, currentLevel + 1);
+                if (level !== -1) {
+                    return level;
+                }
+            }
+        }
+        return -1; // Not found
+    };
+
     const renderComments = (comments) => {
         const commentList = $('#comments-list');
         commentList.empty();
@@ -153,10 +188,10 @@ $(document).ready(function () {
         const sanitizedContent = DOMPurify.sanitize(comment.content || "<em>No content</em>");
         const isAuthorized = currentUserId === comment.userId.toString();
         const locked = $('#thread-container').data('thread-locked');
-
-
+        
+        // Store the level as a data attribute on the comment element
         let commentHTML = `
-          <li id="comment-${comment.id}" style="margin-left: ${level * 20}px;" class="list-group-item">
+          <li id="comment-${comment.id}" style="margin-left: ${level * 20}px;" class="list-group-item" data-comment-level="${level}">
               <p><strong>User ID ${comment.userId} Commented at:</strong> ${comment.createdAt}</p>
               <div class="mb-2">${sanitizedContent}</div>
               <p>Upvotes: <span id="upvotes-${comment.id}">${comment.upvoteCount}</span>, Downvotes: <span id="downvotes-${comment.id}">${comment.downvoteCount}</span></p>
@@ -165,7 +200,7 @@ $(document).ready(function () {
                 <button class="btn btn-danger btn-sm delete-btn" data-comment-id="${comment.id}">Delete</button>
              ` : ''}
              ${!locked ? `
-                <button class="btn btn-info btn-sm reply-btn" data-comment-id="${comment.id}">Reply</button>
+                <button class="btn btn-info btn-sm reply-btn" data-comment-id="${comment.id}" data-level="${level}">Reply</button>
                 <button class="btn btn-success btn-sm upvote-btn" data-comment-id="${comment.id}">Upvote</button>
                 <button class="btn btn-danger btn-sm downvote-btn" data-comment-id="${comment.id}">Downvote</button>
              ` : `
@@ -176,9 +211,9 @@ $(document).ready(function () {
           `;
 
         if (comment.replies && comment.replies.length > 0) {
-            if (level >= 5) {
+            if (level >= 4) { // Changed to 4 to show the link at the 5th level
                 commentHTML += `
-                   <a href="/thread/comments?id=${comment.id}" class="btn btn-link btn-sm text-primary">Continue this thread...</a>
+                   <a href="/thread/comments?id=${comment.id}" class="btn btn-link btn-sm text-primary continue-thread-link">Continue this thread...</a>
                 `;
             } else {
                 commentHTML += `
@@ -196,18 +231,17 @@ $(document).ready(function () {
 
     $(document).on('click', '.show-replies-btn', function () {
         const commentId = $(this).data('comment-id');
-        const level = $(this).data('level');
+        const level = parseInt($(this).data('level'));
         const loaded = $(this).data('loaded');
         const repliesList = $(`#replies-for-${commentId}`);
         const threadId = (new URLSearchParams(window.location.search)).get('id');
 
         const allCommentsJSON = sessionStorage.getItem(`comments-thread-${threadId}`);
-        console.log(allCommentsJSON, `comments-thread-${threadId}`)
         if (!allCommentsJSON) {
             console.error('No comments data found in sessionStorage.');
             return;
         }
-        const allComments = JSON.parse(allCommentsJSON)
+        const allComments = JSON.parse(allCommentsJSON);
         const parentComment = findCommentById(allComments, commentId);
 
         if (!parentComment) {
@@ -218,7 +252,7 @@ $(document).ready(function () {
         if (!loaded) {
             const replies = parentComment.replies || [];
             replies.forEach((reply) => {
-                const replyHTML = renderComment(reply, level + 1);
+                const replyHTML = renderComment(reply, level);
                 repliesList.append(replyHTML);
             });
 
@@ -226,8 +260,9 @@ $(document).ready(function () {
             repliesList.show();
             $(this).text('Hide Replies');
 
-            // Update expanded replies set
-            expandedReplies.add(commentId);
+            // Update expanded replies map with level info
+            expandedReplies.set(commentId, level);
+            updateExpandedRepliesState();
         } else {
             if (repliesList.is(':visible')) {
                 repliesList.hide();
@@ -236,8 +271,9 @@ $(document).ready(function () {
             } else {
                 repliesList.show();
                 $(this).text('Hide Replies');
-                expandedReplies.add(commentId);
+                expandedReplies.set(commentId, level);
             }
+            updateExpandedRepliesState();
         }
     });
 
@@ -271,6 +307,7 @@ $(document).ready(function () {
         const threadId = $('#thread-container').data('thread-id');
         const parentCommentId = $('#parentCommentId').val() || null;
         const comment = createReplyQuill.root.innerHTML;
+        const parentLevel = parseInt($('.reply-btn[data-comment-id="' + parentCommentId + '"]').data('level') || 0);
 
         if (!threadId || !comment.trim()) {
             alert('Thread ID and comment are required.');
@@ -286,10 +323,11 @@ $(document).ready(function () {
                 threadId: threadId,
                 parentCommentId: parentCommentId,
                 content: comment,
+                level: parentLevel + 1, // Track the nesting level
             },
             success: (response) => {
                 if (response.success) {
-                    sessionStorage.removeItem('comments-thread-' + threadId)
+                    sessionStorage.removeItem('comments-thread-' + threadId);
                     loadComments(true); // Force refresh after post
                     createReplyQuill.root.innerHTML = '';
                     $('#parentCommentId').val('');
@@ -305,7 +343,10 @@ $(document).ready(function () {
 
     $(document).on('click', '.reply-btn', function () {
         const commentId = $(this).data('comment-id');
+        const level = parseInt($(this).data('level'));
         $('#parentCommentId').val(commentId);
+        // Store the parent level for reference when posting
+        $('#parentCommentId').data('parent-level', level);
         createReplyQuill.root.innerHTML = '';
         $('html, body').animate({
             scrollTop: $('#create-reply-form').offset().top - 100,
@@ -414,6 +455,9 @@ $(document).ready(function () {
 
     // Smart polling system
     const setupPolling = () => {
+        // Load previously expanded replies state
+        loadExpandedRepliesState();
+        
         // Initial load
         loadComments();
 
