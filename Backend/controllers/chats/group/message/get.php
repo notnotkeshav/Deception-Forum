@@ -15,7 +15,7 @@ $limit = 20;
 
 if ($method === 'GET') {
     try {
-        $query = "SELECT gcm.id, gcm.userId, gcm.message, gcm.isEdited, gcm.isDeleted, gcm.sentAt
+        $query = "SELECT gcm.id, gcm.userId, gcm.message, gcm.isEdited, gcm.isDeleted, gcm.upvoteCount, gcm.downvoteCount, gcm.sentAt
                   FROM groupMessages gcm
                   WHERE gcm.groupId = :groupId";
 

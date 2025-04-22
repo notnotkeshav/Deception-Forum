@@ -7,7 +7,7 @@ $db = App::container()->resolve('Core\Database');
 if ($method === 'GET') {
     try {
         // Build query for new group chat messages
-        $query = "SELECT gcm.id, gcm.userId, gcm.message, gcm.isEdited, gcm.isDeleted, gcm.sentAt
+        $query = "SELECT gcm.id, gcm.userId, gcm.message, gcm.isEdited, gcm.isDeleted, gcm.upvoteCount, gcm.downvoteCount, gcm.sentAt
                   FROM groupMessages gcm
                   WHERE gcm.groupId = :groupId";
 
