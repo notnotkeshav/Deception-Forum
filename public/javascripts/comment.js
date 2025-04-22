@@ -165,12 +165,18 @@ $(document).ready(function () {
          `;
 
       if (comment.replies && comment.replies.length > 0) {
-         commentHTML += `
-            <button class="btn btn-secondary btn-sm show-replies-btn" data-comment-id="${comment.id}" data-level="${level + 1}" data-loaded="false">
-               Show Replies (${comment.replies.length})
-            </button>
-            <ul class="list-group replies-list" id="replies-for-${comment.id}" style="display: none;"></ul>
-         `;
+         if (level >= 5) {
+            commentHTML += `
+                  <a href="/thread/comments?id=${comment.id}" class="btn btn-link btn-sm text-primary">Continue this thread...</a>
+               `;
+         } else {
+            commentHTML += `
+                  <button class="btn btn-secondary btn-sm show-replies-btn" data-comment-id="${comment.id}" data-level="${level + 1}" data-loaded="false">
+                     Show Replies (${comment.replies.length})
+                  </button>
+                  <ul class="list-group replies-list" id="replies-for-${comment.id}" style="display: none;"></ul>
+               `;
+         }
       }
 
       commentHTML += '</li>';
@@ -195,7 +201,7 @@ $(document).ready(function () {
       if (!loaded) {
          const replies = parentComment.replies || [];
          replies.forEach((reply) => {
-            const replyHTML = renderComment(reply, level);
+            const replyHTML = renderComment(reply, level + 1);
             repliesList.append(replyHTML);
          });
 

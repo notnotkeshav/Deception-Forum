@@ -23,21 +23,33 @@ if ($method === 'GET') {
         );
         $comments = $db->getAll($stmt);
 
-        function getReplies($parentId, $db)
+        function getReplies($parentId, $db, $depth = 1)
         {
             $stmt = $db->query(
                 "SELECT * FROM comments WHERE parentCommentId = :parentCommentId AND isDeleted = 0 ORDER BY createdAt DESC",
                 [":parentCommentId" => $parentId]
             );
             $replies = $db->getAll($stmt);
+
             foreach ($replies as &$reply) {
-                $reply['replies'] = getReplies($reply['id'], $db);
+                if ($depth < 6) {
+                    $reply['replies'] = getReplies($reply['id'], $db, $depth + 1);
+                } else {
+                    // Instead of fetching more, just tell frontend that more replies exist
+                    $stmtCount = $db->query(
+                        "SELECT COUNT(*) as replyCount FROM comments WHERE parentCommentId = :parentCommentId AND isDeleted = 0",
+                        [":parentCommentId" => $reply['id']]
+                    );
+                    $countResult = $db->getOne($stmtCount);
+                    $reply['hasMoreReplies'] = $countResult && $countResult['replyCount'] > 0;
+                }
             }
+
             return $replies;
         }
 
         foreach ($comments as &$comment) {
-            $comment['replies'] = getReplies($comment['id'], $db);
+            $comment['replies'] = getReplies($comment['id'], $db, 1);
         }
 
         sendJsonResponse(true, "Comments fetched successfully.", ["comments" => $comments], 200);

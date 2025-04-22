@@ -23,6 +23,7 @@ $router->patch("/reset-password", "auth/password/reset.php")->only('guest'); // 
 // Thread Management Routes
 $router->get("/threads", "threads/all.php"); // Display all available threads
 $router->get("/threads/new", "threads/create.php")->only('auth'); // Display form to create a new thread (authenticated users only)
+$router->get("/thread/comments", "threads/comment-page.php")->only('auth'); // Display form to create a new thread (authenticated users only)
 $router->post("/threads", "threads/create.php")->only('auth'); // Handle new thread submission
 $router->get("/thread", "threads/thread.php")->only('auth'); // View a specific thread by ID (authenticated users only)
 $router->get("/thread/edit", "threads/edit.php")->only('auth'); // Display thread edit form (authenticated users only)
@@ -32,6 +33,7 @@ $router->put("/thread/vote", "threads/vote.php")->only('auth'); // Cast a vote o
 
 // Comment Management Routes
 $router->get("/comments", "comments/comment.php")->only('auth'); // View all comments (authenticated users only)
+$router->get("/comments/load-more", "comments/more.php")->only('auth'); // 
 $router->post("/comment", "comments/create.php")->only('auth'); // Submit a new comment (authenticated users only)
 $router->put("/comment/edit", "comments/edit.php")->only('auth'); // Edit an existing comment (authenticated users only)
 $router->delete("/comment", "comments/comment.php")->only('auth'); // Delete a comment (authenticated users only)
