@@ -3,7 +3,13 @@ require(base_path("/frontend/views/partials/header.php"));
 require(base_path("/frontend/views/partials/navbar.php"));
 ?>
 
-<a href="/thread?id=<?= $thread['id'] ?>" class="btn btn-outline-secondary ms-3 mt-5">← Back to Main Thread</a>
+<?php if ($navigateToMainThread): ?>
+    <a href="/thread?id=<?= $thread['id'] ?>" class="btn btn-outline-secondary ms-3 mt-5">← Back to Main Thread</a>
+<?php else: ?>
+    <a href="/thread/comments?id=<?= $parentNavigationId ?>" class="btn btn-outline-secondary ms-3 mt-5">
+        ← Back <?= $levelsNavigated ?> <?= $levelsNavigated > 1 ? 'Levels' : 'Level' ?> Up
+    </a>
+<?php endif; ?>
 
 <div id="thread-container" data-thread-id="<?= $thread['id'] ?>"
    data-thread-locked="<?= $thread['locked'] ? 'true' : 'false' ?>"></div>
