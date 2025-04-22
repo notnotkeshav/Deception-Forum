@@ -59,25 +59,26 @@ $(document).ready(() => {
 
          // Vote buttons and counts
          const upvoteButton = `
-            <button class="btn btn-sm btn-success upvote-button" data-message-id="${msg.id}">Upvote</button>
+            <button class="btn btn-sm btn-success upvote-button" data-message-id="${msg.id}" id="upvote-btn-${msg.id}">
+               👍 ${msg.upvoteCount || 0}
+            </button>
          `;
          const downvoteButton = `
-            <button class="btn btn-sm btn-danger downvote-button" data-message-id="${msg.id}">Downvote</button>
-         `;
-         const voteCount = `
-            <span class="vote-count" id="vote-count-${msg.id}">${msg.voteCount || 0}</span>
+            <button class="btn btn-sm btn-danger downvote-button" data-message-id="${msg.id}" id="downvote-btn-${msg.id}">
+               👎 ${msg.downvoteCount || 0}
+            </button>
          `;
 
          const li = document.createElement('li');
          li.className = `mb-2 ${messageClass}`;
          li.setAttribute('data-id', msg.id);
          li.innerHTML = `
-             <strong>${msg.username}</strong><br>
+             <strong>${msg.userId}</strong><br>
              <span class="badge bg-secondary">${messageContent}</span>
              <small class="text-muted d-block">${msg.sentAt}</small>
              ${controls}
              <div class="message-vote">
-                ${upvoteButton} ${downvoteButton} ${voteCount}
+                ${upvoteButton} ${downvoteButton}
              </div>
           `;
          fragment.appendChild(li);
@@ -161,6 +162,7 @@ $(document).ready(() => {
       $.ajax({
          url: `${API_BASE_URL}/group-chat/message/vote`,
          method: 'PUT',
+         dataType: 'json',
          data: {
             messageId: messageId,
             voteType: 'upvote',
@@ -169,7 +171,7 @@ $(document).ready(() => {
          },
          success: (response) => {
             if (response.success) {
-               updateVoteCount(messageId, 'upvote');
+               updateVoteCount(messageId, response.details);
             } else {
                alert('Failed to upvote');
             }
@@ -185,6 +187,7 @@ $(document).ready(() => {
       $.ajax({
          url: `${API_BASE_URL}/group-chat/message/vote`,
          method: 'PUT',
+         dataType: 'json',
          data: {
             messageId: messageId,
             voteType: 'downvote',
@@ -193,7 +196,7 @@ $(document).ready(() => {
          },
          success: (response) => {
             if (response.success) {
-               updateVoteCount(messageId, 'downvote');
+               updateVoteCount(messageId, response.details);
             } else {
                alert('Failed to downvote');
             }
@@ -204,17 +207,9 @@ $(document).ready(() => {
       });
    });
 
-   const updateVoteCount = (messageId, voteType) => {
-      const voteCountElement = $(`#vote-count-${messageId}`);
-      let currentVoteCount = parseInt(voteCountElement.text()) || 0;
-
-      if (voteType === 'upvote') {
-         currentVoteCount += 1;
-      } else if (voteType === 'downvote') {
-         currentVoteCount -= 1;
-      }
-
-      voteCountElement.text(currentVoteCount);
+   const updateVoteCount = (messageId, voteCountObj) => {
+      $(`#upvote-btn-${messageId}`).html(`👍 ${voteCountObj.updatedUpvotes}`);
+      $(`#downvote-btn-${messageId}`).html(`👎 ${voteCountObj.updatedDownvotes}`);
    };
 
    const pollNewMessages = () => {
@@ -260,7 +255,7 @@ $(document).ready(() => {
              <small class="text-muted d-block">${msg.sentAt}</small>
              ${controls}
              <div class="message-vote">
-                ${upvoteButton} ${downvoteButton} ${voteCount}
+                ${upvoteButton} ${downvoteButton}
              </div>
           `;
          fragment.appendChild(li);
