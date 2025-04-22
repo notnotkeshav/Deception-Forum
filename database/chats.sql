@@ -26,6 +26,8 @@ CREATE TABLE groupMessages (
     message TEXT NOT NULL,
     isEdited BOOLEAN DEFAULT FALSE,
     isDeleted BOOLEAN DEFAULT FALSE,
+    upvoteCount INT DEFAULT 0,
+    downvoteCount INT DEFAULT 0,
     sentAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (groupId) REFERENCES chatGroups(id) ON DELETE CASCADE

@@ -96,7 +96,7 @@ END //
 DELIMITER ;
 
 
--- PROCEDURE #2
+-- PROCEDURE #3
 
 DELIMITER //
 
