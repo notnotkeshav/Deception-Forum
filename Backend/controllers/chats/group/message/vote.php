@@ -7,7 +7,6 @@ $cache = App::container()->resolve('Core\Cache');
 
 $params = getQueryParams();
 parse_str(file_get_contents("php://input"), $body);
-error_log(print_r($body, true));
 if ($method === 'PUT' && isset($body['action']) && $body['action'] === 'vote') {
     if (!isset($body['messageId'], $body['voteType'], $body['userId'])) {
         sendJsonResponse(false, "Message ID, vote type, and user ID are required.", [], 400);
@@ -22,8 +21,6 @@ if ($method === 'PUT' && isset($body['action']) && $body['action'] === 'vote') {
     }
 
     try {
-        $db->beginTransaction();
-
         $stmt = $db->query(
             "CALL updateMessageVotesAndGetCounts(:messageId, :voteType, :userId)",
             [
@@ -35,9 +32,6 @@ if ($method === 'PUT' && isset($body['action']) && $body['action'] === 'vote') {
 
         $updatedCounts = $db->getOne($stmt);
 
-        $cache->delete("message:" . $messageId);
-        $db->commit();
-
         sendJsonResponse(
             true,
             ucfirst($voteType) . " successful.",
@@ -48,8 +42,7 @@ if ($method === 'PUT' && isset($body['action']) && $body['action'] === 'vote') {
             200
         );
     } catch (Exception $e) {
-        $db->rollBack();
-        error_log("Error while voting group message ".$e->getMessage());
+        error_log("Error while voting group message " . $e->getMessage());
         sendJsonResponse(false, $e->getMessage(), [], 500);
     }
 } else {
