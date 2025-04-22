@@ -4,7 +4,7 @@
 <div class="container mt-4">
     <h1 class="text-center"><?= htmlspecialchars($heading) ?> : <?= $_GET['id']?></h1>
     
-    <div id="chat-window" class="border rounded p-3 bg-light" style="height: 80vh; overflow-y: auto;">
+    <div id="chat-window" class="border rounded p-3 bg-light" style="height: 60vh; overflow-y: auto;">
         <?php if (empty($messages)) : ?>
             <p class="text-center text-muted">No messages</p>
         <?php else : ?>
