@@ -141,7 +141,7 @@ $(document).ready(() => {
       if (!newMessage || newMessage.trim() === '') return;
 
       $.ajax({
-         url: `${API_BASE_URL}/private-chat/message/edit`,
+         url: `${API_BASE_URL}/private-chat/message`,
          method: 'PUT',
          data: { messageId: messageId, message: newMessage },
          dataType: 'json',
