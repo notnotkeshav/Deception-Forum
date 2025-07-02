@@ -5,6 +5,8 @@ use Backend\Core\App;
 $db = App::container()->resolve('Core\Database');
 
 if ($method === 'GET') {
+    $groupId = $_GET['id'];
+    $newestTimestamp = $_GET['newestTimestamp'];
     try {
         // Build query for new group chat messages
         $query = "SELECT gcm.id, gcm.userId, gcm.message, gcm.isEdited, gcm.isDeleted, gcm.upvoteCount, gcm.downvoteCount, gcm.sentAt

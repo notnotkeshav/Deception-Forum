@@ -5,11 +5,13 @@ use Backend\Core\App;
 $db = App::container()->resolve('Core\Database');
 
 if ($method === 'GET') {
+    $chatId = $_GET['chatId'] ?? null;
+    $newestTimestamp = $_GET['newestTimestamp'] ?? null;
     try {
         // Build query for new messages
         $query = "SELECT pcm.id, pcm.userId, pcm.message, pcm.isEdited, pcm.isDeleted, pcm.sentAt
-    FROM privateChatMessages pcm
-    WHERE pcm.chatId = :chatId";
+                    FROM privateChatMessages pcm
+                    WHERE pcm.chatId = :chatId";
 
         $bindings = [":chatId" => $chatId];
 
@@ -29,7 +31,7 @@ if ($method === 'GET') {
         $stmt = $db->query($query, $bindings);
         $messages = $db->getAll($stmt);
 
-        sendJsonResponse(200, ["success" => true, "messages" => $messages]);
+        sendJsonResponse(200, ["success" => true, "messages" => $messages, $newestTimestamp]);
         exit;
     } catch (Exception $e) {
         sendJsonResponse(500, ["success" => false, "message" => "Error fetching new messages: " . $e->getMessage()]);

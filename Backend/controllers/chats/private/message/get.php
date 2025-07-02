@@ -11,6 +11,7 @@ if (!isset($params['id'])) {
 
 $chatId = $params['id'];
 $oldestTimestamp = $params['oldestTimestamp'] ?? null;
+$lastMessageId = $params['lastMessageId'] ?? null;
 $limit = 20; // Define the chunk size for pagination
 
 // Check if the method is GET

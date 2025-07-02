@@ -58,16 +58,16 @@ $(document).ready(() => {
           ` : '';
 
          // Vote buttons and counts
-         const upvoteButton = `
+         const upvoteButton = !msg.isDeleted ?`
             <button class="btn btn-sm btn-success upvote-button" data-message-id="${msg.id}" id="upvote-btn-${msg.id}">
                👍 ${msg.upvoteCount || 0}
             </button>
-         `;
-         const downvoteButton = `
+         `:'';
+         const downvoteButton = !msg.isDeleted ?`
             <button class="btn btn-sm btn-danger downvote-button" data-message-id="${msg.id}" id="downvote-btn-${msg.id}">
                👎 ${msg.downvoteCount || 0}
             </button>
-         `;
+         `:'';
 
          const li = document.createElement('li');
          li.className = `mb-2 ${messageClass}`;

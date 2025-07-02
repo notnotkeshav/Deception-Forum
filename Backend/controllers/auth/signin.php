@@ -63,6 +63,7 @@ if ($method === 'GET') {
          throw new Exception("Account locked. Try again after $remainingLockout minutes.", 429);
       }
 
+      error_log($_POST['email']);
       if (!Validator::email($_POST['email'])) {
          throw new Exception("Invalid Email", 400);
       }
