@@ -6,6 +6,7 @@ use Backend\Routes\Router;
 session_start();
 const BASE_PATH = __DIR__ . "/";
 require(BASE_PATH . "Backend/Utils/functions.php");
+include('browser-check.php'); 
 
 loadEnv(base_path("Backend/Core/.env"));
 
