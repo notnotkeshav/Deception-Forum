@@ -79,9 +79,6 @@ $(function () {
          method: 'POST',
          contentType: 'application/x-www-form-urlencoded',
          dataType: 'json',
-         headers: {
-            'Authorization': `Bearer ${token}`
-         },
          data: {
             email,
             password
