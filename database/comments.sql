@@ -40,7 +40,7 @@ CREATE TABLE notifications (
     isRead BOOLEAN DEFAULT FALSE,
     priority ENUM('low', 'medium', 'high') DEFAULT 'medium',
     source ENUM('user', 'system', 'admin') DEFAULT 'user',
-    expiresAt TIMESTAMP DEFAULT NULL,
+    expiresAt DATETIME DEFAULT NULL,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE CASCADE,

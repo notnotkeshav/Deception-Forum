@@ -66,7 +66,7 @@ CREATE TABLE chatNotifications (
     isRead TINYINT(1) DEFAULT 0,
     priority ENUM('low', 'medium', 'high') DEFAULT 'medium',
     source ENUM('user', 'system', 'admin') DEFAULT 'user',
-    expiresAt TIMESTAMP DEFAULT NULL,
+    expiresAt DATETIME DEFAULT NULL,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (chatId) REFERENCES privateChats(id) ON DELETE CASCADE,

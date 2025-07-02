@@ -4,7 +4,7 @@ CREATE TABLE threads (
     content TEXT NOT NULL,
     userId CHAR(36) NOT NULL,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    editedAt TIMESTAMP DEFAULT NULL,
+    editedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status ENUM('closed', 'open', 'archived', 'pinned') DEFAULT 'open',
     isDeleted BOOLEAN DEFAULT FALSE,
     viewsCount INT DEFAULT 0,
