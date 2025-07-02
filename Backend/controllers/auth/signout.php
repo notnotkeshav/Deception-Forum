@@ -1,12 +1,29 @@
 <?php
 
+use Backend\Core\App;
+
+$cache = App::container()->resolve('Core\Cache');
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
    $token = getBearerToken();
 
    if (isset($token)) {
       if (isset($_SESSION['token']) && $_SESSION['token'] === $token) {
+
+         $userId = $_SESSION['userId'] ?? null;
+         $loginUrl = $_SESSION['user']['loginUrl'] ?? null;
+
+         if ($loginUrl) {
+            $cache->delete("loginurl:$loginUrl");
+            $cache->delete("user:loginurl:$loginUrl");
+         }
+
+         // Destroy session tokens
          unset($_SESSION['token']);
          unset($_SESSION['token_expiration']);
+         unset($_SESSION['userId']);
+         unset($_SESSION['user']);
+         unset($_SESSION['moderator']);
 
          // 200 OK: Successfully logged out
          http_response_code(200);

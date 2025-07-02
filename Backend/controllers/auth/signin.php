@@ -129,7 +129,7 @@ if ($method === 'GET') {
                   'name' => $user['name']
                ]);
 
-               $mailer->sendHTML(
+               queueEmail(
                   $user['email'],
                   "Account Permanently Locked",
                   $emailBody

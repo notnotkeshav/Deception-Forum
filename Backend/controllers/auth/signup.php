@@ -141,11 +141,7 @@ if ($method === 'GET') {
         ]);
 
         // Send the email using the mailer
-        $mailer->sendHTML(
-            $_POST['email'],            // User's email address
-            "Signup Successful",        // Email subject
-            $emailBody                  // HTML email body
-        );
+        queueEmail($_POST['email'], "Signup Successful", $emailBody);
 
         // Commit the transaction
         $db->commit();

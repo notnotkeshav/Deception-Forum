@@ -110,7 +110,7 @@ try {
             'year' => $currentYear
          ]);
 
-         $mailer->sendHTML(
+         queueEmail(         
             $user['email'],
             "Password Changed Successfully",
             $emailBody

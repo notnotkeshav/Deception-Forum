@@ -122,7 +122,7 @@ if ($method === "GET") {
             'year' => date('Y')
         ]);
 
-        $mailer->sendHTML(
+        queueEmail(
             $user['email'],
             "Password Reset Confirmation",
             $emailBody

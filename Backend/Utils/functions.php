@@ -147,3 +147,25 @@ function loadEnv($file)
       putenv("$key=$value");
    }
 }
+
+function queueEmail($to, $subject, $body)
+{
+    $queueDir = __DIR__ . "/../core/email_queue";
+
+    if (!is_dir($queueDir)) {
+        mkdir($queueDir, 0777, true);  // recursive mkdir with full permissions
+    }
+
+    $jobId = uniqid('email_', true);
+    $file = $queueDir . "/{$jobId}.json";
+    $data = ['to' => $to, 'subject' => $subject, 'body' => $body];
+
+    $result = file_put_contents($file, json_encode($data));
+    
+    if ($result === false) {
+        error_log("Failed to write email job to file: $file");
+    } else {
+        error_log("Queued email job file created: $file");
+        // Or just: echo "Queued email job file created: $file\n";
+    }
+}
