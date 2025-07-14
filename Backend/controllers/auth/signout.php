@@ -24,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
          unset($_SESSION['userId']);
          unset($_SESSION['user']);
          unset($_SESSION['moderator']);
+         unset($_SESSION);
 
          // 200 OK: Successfully logged out
          http_response_code(200);

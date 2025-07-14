@@ -12,6 +12,12 @@ $router->get("/generate_invite_code", "auth/invite.php")->only('auth'); // Displ
 $router->post("/generate_invite_code", "auth/invite.php")->only('auth'); // Process invite code generation (authenticated users only)
 $router->get("/username", "auth/generate_username.php")->only('guest'); // Generate a unique username (guests only)
 
+// TOPT TFA Routes
+$router->get("/totp-setup", "auth/totp_setup.php")->only('auth'); // Display TOTP setup page
+$router->post("/totp-setup", "auth/totp_setup.php")->only('auth'); // Handle TOTP setup
+$router->get("/verify-totp", "auth/verify_totp.php")->only('partial_auth'); // Display TOTP verification page
+$router->post("/verify-totp", "auth/verify_totp.php")->only('partial_auth'); // Handle TOTP verification
+
 // Password Management Routes
 $router->get("/change-password", "auth/password/change.php")->only('auth'); // Display change password form (authenticated users only)
 $router->put("/change-password", "auth/password/change.php")->only('auth'); // Process password change request

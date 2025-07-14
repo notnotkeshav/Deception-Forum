@@ -4,6 +4,33 @@
 <!-- Navbar -->
 <?php require(base_path("/frontend/views/partials/navbar.php")); ?>
 
+<!-- Security Alert Section (TOTP Enable) -->
+<?php if (isset($_SESSION['user']) && !$_SESSION['user']['totp_enabled']): ?>
+    <section class="security-alert bg-warning text-dark py-3">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-shield-alt me-3 fs-4"></i>
+                        <div>
+                            <h6 class="mb-1 fw-bold">Enhance Your Account Security</h6>
+                            <p class="mb-0 small">Enable Two-Factor Authentication (TOTP) to protect your account from unauthorized access.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-md-end mt-2 mt-md-0">
+                    <button class="btn btn-dark btn-sm" onclick="enableTOTP()">
+                        <i class="fas fa-lock me-2"></i>Enable TOTP
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm ms-2" onclick="dismissSecurityAlert()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+<?php endif; ?>
+
 <!-- Hero Section -->
 <section class="header-section fade-in bg-gradient text-dark d-flex align-items-center justify-content-center" style="height: 100vh; background: linear-gradient(45deg, #f8f9fa, #dcdfe2);">
     <div class="container text-center">
@@ -157,5 +184,18 @@
         <a href="#" class="text-dark text-decoration-none">Terms of Service</a>
     </p>
 </footer>
+
+<script>
+    // TOTP Enable Functions
+    function enableTOTP() {
+        window.location.href = '/totp-setup'
+    }
+
+    function dismissSecurityAlert() {
+        document.querySelector('.security-alert').style.display = 'none';
+        // Set a cookie to remember dismissal
+        document.cookie = "totp_alert_dismissed=true; path=/; max-age=86400"; // 24 hours
+    }
+</script>
 
 <?php require(base_path("/frontend/views/partials/footer.php")); ?>

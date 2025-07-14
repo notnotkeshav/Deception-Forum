@@ -10,11 +10,115 @@ class Validator
       return strlen($value) >= $min && strlen($value) <= $max;
    }
 
+   public static function digits($value, $length = null)
+   {
+      if (!is_string($value) && !is_numeric($value)) {
+         return false;
+      }
+
+      $value = (string)$value;
+
+      // Check if contains only digits
+      if (!ctype_digit($value)) {
+         return false;
+      }
+
+      // Check length if specified
+      if ($length !== null && strlen($value) !== $length) {
+         return false;
+      }
+
+      return true;
+   }
+
+   public static function length($value, $min = 0, $max = null)
+   {
+      $length = strlen($value);
+
+      if ($length < $min) {
+         return false;
+      }
+
+      if ($max !== null && $length > $max) {
+         return false;
+      }
+
+      return true;
+   }
+
+   public static function required($value)
+   {
+      if ($value === null || $value === '') {
+         return false;
+      }
+
+      if (is_array($value) && empty($value)) {
+         return false;
+      }
+
+      return true;
+   }
+
+   public static function numeric($value)
+   {
+      return is_numeric($value);
+   }
+
+   public static function integer($value)
+   {
+      return filter_var($value, FILTER_VALIDATE_INT) !== false;
+   }
+
+   public static function url($url)
+   {
+      return filter_var($url, FILTER_VALIDATE_URL) !== false;
+   }
+
+   public static function pattern($value, $pattern)
+   {
+      return preg_match($pattern, $value) === 1;
+   }
+
    public static function email($value)
    {
-      return filter_var($value, FILTER_VALIDATE_EMAIL);
+      if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
+         return false;
+      }
+
+      $domain = strtolower(substr(strrchr($value, "@"), 1));
+
+      // Blacklisted domains
+      $blacklistedDomains = [
+         // Temporary/disposable email domains
+         '10minutemail.com',
+         'guerrillamail.com',
+         'mailinator.com',
+         'tempmail.org',
+         'throwaway.email',
+         'temp-mail.org',
+         'yopmail.com',
+         'maildrop.cc',
+         'sharklasers.com',
+         'guerrillamailblock.com',
+         'pokemail.net',
+         'spam4.me',
+         'mailnesia.com',
+         'jetable.org',
+         'trashmail.com',
+         '33mail.com',
+         'emailondeck.com',
+         'fakeinbox.com',
+         'spamgourmet.com',
+         'tempail.com',
+         'dispostable.com',
+         'mohmal.com',
+         'mytrashmail.com',
+         // Add more as needed
+      ];
+
+      return !in_array($domain, $blacklistedDomains);
    }
-   
+
    public static function password($value, $username = '', $name = '')
    {
       if (!is_string($value)) {

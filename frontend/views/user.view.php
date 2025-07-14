@@ -20,6 +20,7 @@ require(base_path("/frontend/views/partials/navbar.php"));
                     <div class="d-flex justify-content-between mt-3">
                         <a href="edit-profile" class="btn btn-primary">Edit Profile</a>
                         <a href="change-password" class="btn btn-warning">Change Password</a>
+                        <a href="totp-setup" class="btn btn-secondary">Enable/Disable TFA</a>
                     </div>
                 </div>
             </div>

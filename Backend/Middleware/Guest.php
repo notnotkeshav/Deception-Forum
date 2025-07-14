@@ -10,5 +10,15 @@ class Guest
          header('location: /');
          exit();
       }
+
+      if (!empty($_SESSION['user'])) {
+            header('location: /');
+            exit();
+        }
+
+      if (!empty($_SESSION['partial_auth'])) {
+            header('location: /verify-totp');
+            exit();
+        }
    }
 }

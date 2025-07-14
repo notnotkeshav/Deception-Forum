@@ -13,7 +13,7 @@
             <li class="nav-item">
                <a class="nav-link" href="/threads">Threads</a>
             </li>
-            <?php if (!empty($_SESSION) && $_SESSION['user']['accessLevel'] >= 5): ?>
+            <?php if (!empty($_SESSION) && !empty($_SESSION['user'])&& $_SESSION['user']['accessLevel'] >= 5): ?>
                <li class="nav-item">
                   <a class="nav-link" href="/generate_invite_code">Generate Invite Code</a>
                </li>

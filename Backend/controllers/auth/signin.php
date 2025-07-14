@@ -37,7 +37,6 @@ if ($method === 'GET') {
          $stmt = $db->query("SELECT * FROM users WHERE loginurl = :code AND isDeleted = 0", [":code" => $params['code']]);
          $user = $db->getOne($stmt);
 
-
          // Cache the retrieved login code and user information
          if ($user && isset($user['loginUrl'])) {
             $cache->set("loginurl:" . $params['code'], $loginCode);
@@ -48,7 +47,6 @@ if ($method === 'GET') {
       }
 
       $user = $cache->get("user:loginurl:" . $params['code'])['value'];
-      // dumpAndDie($user);
 
       // Define keys for tracking lockouts, failed attempts, and suspicious IPs
       $lockoutKey = "lockout:" . $user['id'];
@@ -86,6 +84,29 @@ if ($method === 'GET') {
             $cache->delete($lockoutKey);
             $cache->delete($suspiciousIPKey);
 
+            // Check if TOTP is enabled for this user
+            if ($user['totp_enabled']) {
+               // Store partial auth and redirect to TOTP verification
+               $_SESSION['partial_auth'] = [
+                  'userId' => $user['id'],
+                  'expires' => time() + 300 // 5 minutes
+               ];
+               
+               // Store basic user info for display purposes
+               $_SESSION['totp_user_info'] = [
+                  'username' => $user['username'],
+                  'email' => $user['email']
+               ];
+               
+               $db->commit();
+               sendJsonResponse(true, "TOTP verification required", [
+                  'redirect' => '/verify-totp',
+                  'totp_required' => true
+               ]);
+               exit();
+            }
+
+            // If TOTP not enabled, proceed with normal login
             $token = generateToken();
             $expiresAt = $currentTime + (24 * 60 * 60);
 

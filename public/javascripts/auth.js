@@ -87,16 +87,46 @@ $(function () {
             if (response.success) {
                $('#success-block').text('Signin successful!')
                   .show(); // Show success block
-               if (response.details.session) {
+               if (response.details && response.details.totp_required) {
+                  $('#success-block').text('TOTP verification required. Redirecting...');
+                  setTimeout(() => {
+                     window.location.href = response.details.redirect || '/verify-totp';
+                  }, 1000);
+                  return;
+               }
+
+               if (response.details && response.details.session) {
                   sessionStorage.setItem('token', response.details.session.token);
                   sessionStorage.setItem('userId', response.details.session.userId);
                   sessionStorage.setItem('user', JSON.stringify(response.details.session.user));
+
+                  if (response.details.session.moderator !== undefined) {
+                     sessionStorage.setItem('moderator', response.details.session.moderator);
+                  }
+                  let redirectUrl = '/threads'; // Default redirect
+
+                  // Check if user is a moderator
+                  // if (response.details.session.moderator) {
+                  //    redirectUrl = '/moderator/dashboard';
+                  // }
+
+                  const urlParams = new URLSearchParams(window.location.search);
+                  const returnTo = urlParams.get('returnTo');
+                  if (returnTo) {
+                     redirectUrl = decodeURIComponent(returnTo);
+                  }
+
+                  // Check if there's a redirect URL in the response
+                  if (response.details.redirect) {
+                     redirectUrl = response.details.redirect;
+                  }
+
                   setTimeout(() => {
-                     window.location.href = '/threads';
+                     window.location.href = redirectUrl;
                   }, 1000);
                }
                setTimeout(() => {
-                  window.location.href = '/threads';
+                  window.location.href = '/';
                }, 1000);
             }
          },

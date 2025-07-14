@@ -1,171 +1,290 @@
 <?php
 
-# Array to string conversion Error => if we try to echo ["Array"], -> Do this instead:
-function dumpAndDie($value)
+/**
+ * Dump variable and terminate execution
+ */
+function dumpAndDie($value): void
 {
-   echo "<pre>";
-   var_dump($value); # SuperGlobals => var of format _GET, _SERVER
-   echo "</pre>";
-
-   die(); # it will terminates the code below this line
-
+    echo "<pre>";
+    var_dump($value);
+    echo "</pre>";
+    die();
 }
 
-function getURL()
+/**
+ * Get current request URI
+ */
+function getURL(): string
 {
-   return $_SERVER['REQUEST_URI'];
+    return parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';
 }
 
-function abort($code = 404, $data)
+/**
+ * Abort with error page
+ */
+function abort(int $code = 404, array $data = []): void
 {
-   http_response_code($code);
-   require view("errors/{$code}.php", $data);
-   die();
+    http_response_code($code);
+    
+    if ($code === 419) {
+        // Special case for CSRF token mismatch
+        $data['message'] = $data['message'] ?? 'Page Expired';
+    }
+    
+    $errorView = "errors/{$code}.php";
+    if (function_exists('view_path') && file_exists(view_path($errorView))) {
+        view($errorView, $data);
+    } else {
+        echo "<h1>Error {$code}</h1>";
+        if (!empty($data['message'])) {
+            echo "<p>{$data['message']}</p>";
+        }
+    }
+    die();
 }
 
-function base_path($path)
+/**
+ * Get absolute path with base directory
+ */
+function base_path(string $path = ''): string
 {
-   return BASE_PATH . ltrim($path, "/");
+    return BASE_PATH . ltrim($path, "/");
 }
 
-function view($path, $args = [])
+/**
+ * Get view file path
+ */
+function view_path(string $path = ''): string
 {
-   extract($args);
-   require base_path('frontend/views/' . $path);
+    return base_path('frontend/views/' . ltrim($path, "/"));
 }
 
-function redirect($url)
+/**
+ * Render a view with data
+ */
+function view(string $path, array $args = []): void
 {
-   header("location: {$url}");
-   exit();
+    $viewFile = view_path($path);
+    
+    if (!file_exists($viewFile)) {
+        throw new RuntimeException("View file not found: {$viewFile}");
+    }
+    
+    extract($args);
+    require $viewFile;
 }
 
-function getQueryParams()
+/**
+ * Redirect to URL
+ */
+function redirect(string $url): void
 {
-   try {
-      $url = getURL();
-      $url_components = parse_url($url);
-      if (isset($url_components['query'])) {
-         parse_str($url_components['query'], $params);
-         return $params;
-      } else {
-         return [];
-      }
-   } catch (Exception $e) {
-      return $e;
-   }
+    header("Location: {$url}");
+    exit();
 }
 
-function getRequestBody()
+/**
+ * Get query parameters from URL
+ */
+function getQueryParams(): array
 {
-   $rawData = file_get_contents('php://input');
-   $data = json_decode($rawData, true);
-   if (json_last_error() !== JSON_ERROR_NONE) {
-      return [];
-   }
-
-   return $data;
+    $url = $_SERVER['REQUEST_URI'] ?? '';
+    $url_components = parse_url($url);
+    
+    if (isset($url_components['query'])) {
+        parse_str($url_components['query'], $params);
+        return $params;
+    }
+    
+    return [];
 }
 
-function sendJsonResponse($success, $message, $details = [], $httpCode = 200)
+/**
+ * Get JSON request body
+ */
+function getRequestBody(): array
 {
-   http_response_code((int) ($httpCode));
-   echo json_encode([
-      "success" => $success,
-      "message" => $message,
-      "details" => $details
-   ]);
-   exit();
+    $rawData = file_get_contents('php://input');
+    $data = json_decode($rawData, true);
+    
+    return json_last_error() === JSON_ERROR_NONE ? $data : [];
 }
 
-function getBearerToken()
-{
-   $headers = getallheaders();
-   if (isset($headers['Authorization'])) {
-      // Split the string to get the token
-      list($type, $token) = explode(' ', $headers['Authorization']);
-      if (strcasecmp($type, 'Bearer') === 0) {
-         return $token;
-      }
-   }
-   return null;
+/**
+ * Send JSON response
+ */
+function sendJsonResponse(
+    bool $success, 
+    string $message, 
+    array $details = [], 
+    int $httpCode = 200
+): void {
+    http_response_code($httpCode);
+    header('Content-Type: application/json');
+    
+    echo json_encode([
+        "success" => $success,
+        "message" => $message,
+        "details" => $details
+    ]);
+    
+    exit();
 }
 
-function generateRandomPassword($length = 25)
+/**
+ * Get Bearer token from Authorization header
+ */
+function getBearerToken(): ?string
 {
-   if ($length < 25 || $length > 255) {
-      throw new InvalidArgumentException("Length must be between 25 and 255 characters.");
-   }
-
-   $uppercaseChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-   $lowercaseChars = 'abcdefghijklmnopqrstuvwxyz';
-   $digitChars = '0123456789';
-   $specialChars = '!@#$%^&*()_-+=<>?{}[]|~:;",\'./\\';
-
-   // Ensure we have at least 2 uppercase, 2 lowercase, 3 digits, and 5 special characters
-   $password = '';
-   $password .= $uppercaseChars[random_int(0, strlen($uppercaseChars) - 1)];
-   $password .= $uppercaseChars[random_int(0, strlen($uppercaseChars) - 1)];
-   $password .= $lowercaseChars[random_int(0, strlen($lowercaseChars) - 1)];
-   $password .= $lowercaseChars[random_int(0, strlen($lowercaseChars) - 1)];
-   $password .= $digitChars[random_int(0, strlen($digitChars) - 1)];
-   $password .= $digitChars[random_int(0, strlen($digitChars) - 1)];
-   $password .= $digitChars[random_int(0, strlen($digitChars) - 1)];
-
-   // Add special characters
-   for ($i = 0; $i < 5; $i++) {
-      $password .= $specialChars[random_int(0, strlen($specialChars) - 1)];
-   }
-
-   // Fill the rest of the password with random characters from all categories
-   $allChars = $uppercaseChars . $lowercaseChars . $digitChars . $specialChars;
-   $remainingLength = $length - strlen($password);
-
-   for ($i = 0; $i < $remainingLength; $i++) {
-      $password .= $allChars[random_int(0, strlen($allChars) - 1)];
-   }
-
-   // Shuffle the password to ensure randomness
-   return str_shuffle($password);
+    $headers = getallheaders();
+    
+    if (isset($headers['Authorization'])) {
+        if (str_starts_with($headers['Authorization'], 'Bearer ')) {
+            return substr($headers['Authorization'], 7);
+        }
+    }
+    
+    return null;
 }
 
-
-function loadEnv($file)
+/**
+ * Generate secure random password
+ */
+function generateRandomPassword(int $length = 25): string
 {
-   if (!file_exists($file)) {
-      throw new Exception('.env file not found');
-   }
+    if ($length < 25 || $length > 255) {
+        throw new InvalidArgumentException("Length must be between 25 and 255 characters.");
+    }
 
-   $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-   foreach ($lines as $line) {
-      if (strpos(trim($line), '#') === 0) {
-         continue;
-      }
-      list($key, $value) = explode('=', $line, 2);
-      $key = trim($key);
-      $value = trim($value);
-      putenv("$key=$value");
-   }
+    $charsets = [
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+        'abcdefghijklmnopqrstuvwxyz',
+        '0123456789',
+        '!@#$%^&*()_-+=<>?{}[]|~:;",\'./\\'
+    ];
+
+    $password = '';
+    
+    // Ensure at least 2 uppercase, 2 lowercase, 3 digits, and 5 special chars
+    $password .= substr(str_shuffle($charsets[0]), 0, 2);
+    $password .= substr(str_shuffle($charsets[1]), 0, 2);
+    $password .= substr(str_shuffle($charsets[2]), 0, 3);
+    $password .= substr(str_shuffle($charsets[3]), 0, 5);
+
+    // Fill remaining length with random characters from all sets
+    $allChars = implode('', $charsets);
+    $remaining = $length - strlen($password);
+    
+    for ($i = 0; $i < $remaining; $i++) {
+        $password .= $allChars[random_int(0, strlen($allChars) - 1)];
+    }
+
+    return str_shuffle($password);
 }
 
-function queueEmail($to, $subject, $body)
+/**
+ * Load environment variables
+ */
+function loadEnv(string $file): void
+{
+    if (!file_exists($file)) {
+        throw new RuntimeException('.env file not found');
+    }
+
+    $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    
+    foreach ($lines as $line) {
+        $line = trim($line);
+        
+        if (empty($line) || str_starts_with($line, '#')) {
+            continue;
+        }
+        
+        if (strpos($line, '=') !== false) {
+            list($key, $value) = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value);
+            
+            // Remove quotes if present
+            if (preg_match('/^"(.*)"$/', $value, $matches)) {
+                $value = $matches[1];
+            } elseif (preg_match('/^\'(.*)\'$/', $value, $matches)) {
+                $value = $matches[1];
+            }
+            
+            putenv("$key=$value");
+            $_ENV[$key] = $value;
+            $_SERVER[$key] = $value;
+        }
+    }
+}
+
+/**
+ * Queue email for background processing
+ */
+function queueEmail(string $to, string $subject, string $body): bool
 {
     $queueDir = __DIR__ . "/../core/email_queue";
-
+    
     if (!is_dir($queueDir)) {
-        mkdir($queueDir, 0777, true);  // recursive mkdir with full permissions
+        mkdir($queueDir, 0755, true);
     }
 
     $jobId = uniqid('email_', true);
     $file = $queueDir . "/{$jobId}.json";
-    $data = ['to' => $to, 'subject' => $subject, 'body' => $body];
+    $data = [
+        'to' => $to,
+        'subject' => $subject,
+        'body' => $body,
+        'created_at' => date('Y-m-d H:i:s')
+    ];
 
-    $result = file_put_contents($file, json_encode($data));
-    
-    if ($result === false) {
-        error_log("Failed to write email job to file: $file");
-    } else {
-        error_log("Queued email job file created: $file");
-        // Or just: echo "Queued email job file created: $file\n";
+    return file_put_contents($file, json_encode($data)) !== false;
+}
+
+/**
+ * Generate CSRF token
+ */
+function generateCsrfToken(): string
+{
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
+    return $_SESSION['csrf_token'];
+}
+
+/**
+ * Verify CSRF token
+ */
+function verifyCsrfToken(string $token): bool
+{
+    if (empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $token)) {
+        abort(419, ['message' => 'CSRF token mismatch']);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Get current authenticated user
+ */
+function authUser(): ?array
+{
+    return $_SESSION['user'] ?? null;
+}
+
+/**
+ * Check if user is authenticated
+ */
+function isAuthenticated(): bool
+{
+    return isset($_SESSION['user']);
+}
+
+/**
+ * Check if user has partial auth (TOTP step)
+ */
+function hasPartialAuth(): bool
+{
+    return !empty($_SESSION['partial_auth']);
 }
