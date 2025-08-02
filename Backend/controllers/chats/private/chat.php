@@ -6,7 +6,7 @@ $db = App::container()->resolve('Core\Database');
 
 $params = getQueryParams();
 if (!isset($params['id'])) {
-    sendJsonResponse(404, ["success" => false, "message" => "Chat ID not found"]);
+    sendJsonResponse(false, "Chat ID not found", [], 404);
 }
 
 $chatId = $params['id'];
@@ -28,7 +28,7 @@ if ($method === 'GET') {
         $db->commit();
     } catch (Exception $e) {
         $db->rollBack();
-        sendJsonResponse(500, ["success" => false, "message" => "An error occurred while fetching messages."]);
+        sendJsonResponse(false, "An error occurred while fetching messages.", [], 500);
     }
 
     http_response_code(200);
@@ -37,5 +37,5 @@ if ($method === 'GET') {
         "messages" => $messages ?? []
     ]);
 } else {
-    sendJsonResponse(405, ["success" => false, "message" => "Invalid HTTP method."]);
+    sendJsonResponse(false, "Invalid HTTP method.", [], 405,);
 }

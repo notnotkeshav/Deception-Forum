@@ -161,7 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             throw new Exception("Invalid verification code. Attempt: $failedAttempts", 401);
         }
     } catch (Exception $e) {
-        $db->rollBack();
+        // $db->rollBack();
         error_log($e->getMessage());
         sendJsonResponse(false, $e->getMessage(), [], (int)($e->getCode() > 100 && $e->getCode() < 600) ? $e->getCode() : 500);
     }

@@ -6,7 +6,7 @@ $db = App::container()->resolve('Core\Database');
 $params = getQueryParams();
 
 if (!isset($params['id'])) {
-    sendJsonResponse(400, ["success" => false, "message" => "Group Chat ID is required."]);
+    sendJsonResponse(false, "Group Chat ID is required", [], 400);
 }
 
 $groupId = $params['id'];
@@ -42,10 +42,10 @@ if ($method === 'GET') {
             $messages = array_reverse($messages);
         }
 
-        sendJsonResponse(200, ["success" => true, "messages" => $messages]);
+        sendJsonResponse(true, "Messages Fechted", ["messages" => $messages], 200);
     } catch (Exception $e) {
-        sendJsonResponse(500, ["success" => false, "message" => "Error fetching messages: " . $e->getMessage()]);
+        sendJsonResponse(false, "Error fetching messages", ["message" =>   $e->getMessage(), 500]);
     }
 } else {
-    sendJsonResponse(405, ["success" => false, "message" => "Invalid HTTP method."]);
+    sendJsonResponse(false, "Invalid HTTP method.", [], 405);
 }

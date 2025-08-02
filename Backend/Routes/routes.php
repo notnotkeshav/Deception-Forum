@@ -46,11 +46,12 @@ $router->delete("/comment", "comments/comment.php")->only('auth'); // Delete a c
 $router->put("/comment/vote", "comments/vote.php")->only('auth'); // Cast a vote on a comment (authenticated users only)
 
 // Notification Routes
-$router->get("/notifications", "notifications/all.php")->only('auth'); // View all notifications (authenticated users only)
+$router->get("/notifications", "notifications/index.php")->only('auth'); // loads the notification page
+$router->get("/notifications/stream", "notifications/notify.php")->only('auth'); // SSE notification stream
+$router->post("/notifications/mark-read", "notifications/mark-read.php")->only('auth'); // Mark notification as read
+$router->get("/notifications/count", "notifications/count.php")->only('auth'); // Get unread count
 $router->post("/notifications/subscribe", "notifications/subscribe.php")->only('auth'); // Subscribe to notifications
 $router->post("/notifications/unsubscribe", "notifications/unsubscribe.php")->only('auth'); // Unsubscribe from notifications
-$router->get("/private-chat/notifications", "notifications/privateChats.php")->only('auth'); // View notifications specific to private chats
-$router->get("/group-chat/notifications", "notifications/groupChats.php")->only('auth'); // View notifications specific to group chats
 
 // Moderator Controls
 $router->put("/thread/lock", "moderators/lock.php")->only('admin'); // Lock a thread (admin access only)
@@ -80,8 +81,8 @@ $router->delete("/group-chat/message", "chats/group/message/delete.php")->only('
 $router->put("/group-chat/message/vote", "chats/group/message/vote.php")->only('auth'); // Vote on a group chat message
 $router->get("/group-chat/member/add", "chats/group/member/add.php")->only('auth'); // Add a member to a group chat
 $router->post("/group-chat/member/add", "chats/group/member/add.php")->only('auth'); // Add a member to a group chat
-$router->put("/group-chat/member/update", "chats/group/member/update.php")->only('auth'); // Update a group chat member's role
-$router->delete("/group-chat/member", "chats/group/member/remove.php")->only('auth'); // Remove a member from a group chat
+// $router->put("/group-chat/member/update", "chats/group/member/update.php")->only('auth'); // Update a group chat member's role
+// $router->delete("/group-chat/member", "chats/group/member/remove.php")->only('auth'); // Remove a member from a group chat
 
 // User Profile Routes
 $router->get("/user", "user/details.php")->only('auth'); // View authenticated user's profile details

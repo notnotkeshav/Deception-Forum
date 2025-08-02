@@ -31,13 +31,13 @@ if ($method === 'GET') {
         $stmt = $db->query($query, $bindings);
         $messages = $db->getAll($stmt);
 
-        sendJsonResponse(200, ["success" => true, "messages" => $messages, $newestTimestamp]);
+        sendJsonResponse(true, "Messages fechted successfully", ["messages" => $messages, $newestTimestamp], 200);
         exit;
     } catch (Exception $e) {
-        sendJsonResponse(500, ["success" => false, "message" => "Error fetching new messages: " . $e->getMessage()]);
+        sendJsonResponse(false, 'Internal server error', ["message" => "An error occurred while fetching messages: " . $e->getMessage()], 500,);
         exit;
     }
 } else {
     // Return an error if the HTTP method is not GET
-    sendJsonResponse(405, ["success" => false, "message" => "Invalid HTTP method."]);
+    sendJsonResponse(false, "Invalid HTTP method.", [], 405);
 }

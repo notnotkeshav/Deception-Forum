@@ -6,7 +6,7 @@ $db = App::container()->resolve('Core\Database');
 $params = getQueryParams();
 
 if (!isset($params['id'])) {
-    sendJsonResponse(400, ["success" => false, "message" => "Chat ID is required."]);
+    sendJsonResponse(false, "Chat ID is required.", [], 400);
 }
 
 $chatId = $params['id'];
@@ -23,7 +23,7 @@ if ($method === 'GET') {
                   WHERE pcm.chatId = :chatId";
 
         $bindings = [":chatId" => $chatId, ":limit" => $limit];
-        
+
         // If oldestTimestamp is provided, fetch messages older than that timestamp
         if ($oldestTimestamp) {
             // For pagination/infinite scrolling - get messages OLDER than the oldestTimestamp
@@ -53,12 +53,12 @@ if ($method === 'GET') {
         }
 
         // Send the response with the messages
-        sendJsonResponse(200, ["success" => true, "messages" => $messages]);
+        sendJsonResponse(true, "messages fechted successfully", ["messages" => $messages], 200);
     } catch (Exception $e) {
         // Handle any errors that occur during the fetch process
-        sendJsonResponse(500, ["success" => false, "message" => "An error occurred while fetching messages: " . $e->getMessage()]);
+        sendJsonResponse(false, 'Internal server error', ["message" => "An error occurred while fetching messages: " . $e->getMessage()], 500,);
     }
 } else {
     // Return an error if the HTTP method is not GET
-    sendJsonResponse(405, ["success" => false, "message" => "Invalid HTTP method."]);
+    sendJsonResponse(false, "Invalid HTTP method.", [], 405);
 }

@@ -6,7 +6,7 @@ $db = App::container()->resolve('Core\Database');
 
 $params = getQueryParams();
 if (!isset($params['id'])) {
-    sendJsonResponse(404, ["success" => false, "message" => "Group ID not provided"]);
+    sendJsonResponse(false, 'Group ID not provided', [], 404);
 }
 
 $groupId = $params['id'];
@@ -22,7 +22,7 @@ if ($method === 'GET') {
             [":groupId" => $groupId, ":userId" => $userId]
         );
         if (!$db->getOne($membershipStmt)) {
-            sendJsonResponse(403, ["success" => false, "message" => "Access denied. You are not a member of this group."]);
+            sendJsonResponse(false, "Access denied. You are not a member of this group.", [], 403);
         }
 
         // Fetch group messages
@@ -52,7 +52,7 @@ if ($method === 'GET') {
         $db->commit();
     } catch (Exception $e) {
         $db->rollBack();
-        sendJsonResponse(500, ["success" => false, "message" => "An error occurred while fetching messages."]);
+        sendJsonResponse(false, "An error occurred while fetching messages.", [], 500);
     }
 
     http_response_code(200);
@@ -62,5 +62,5 @@ if ($method === 'GET') {
         "groupInfo" => $groupInfo
     ]);
 } else {
-    sendJsonResponse(405, ["success" => false, "message" => "Invalid HTTP method."]);
+    sendJsonResponse(false, "Invalid HTTP method.", [], 405);
 }

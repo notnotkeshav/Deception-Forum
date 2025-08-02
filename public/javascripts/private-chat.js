@@ -25,7 +25,7 @@ $(document).ready(() => {
          headers: { 'Authorization': `Bearer ${token}` },
          success: (response) => {
             if (response.success) {
-               renderMessages(response.message.messages, append);
+               renderMessages(response.details.messages, append);
                
                // If this is the initial load, scroll to the bottom
                if (initialLoad) {
@@ -33,7 +33,7 @@ $(document).ready(() => {
                   initialLoad = false;
                }
             } else {
-               console.error('Error fetching messages:', response.message);
+               console.error('Error fetching messages:', response.details);
             }
             isLoading = false;
          },
@@ -199,9 +199,9 @@ $(document).ready(() => {
          dataType: 'json',
          headers: { 'Authorization': `Bearer ${token}` },
          success: (response) => {
-            if (response.success && response.message.messages && response.message.messages.length > 0) {
+            if (response.success && response.details.messages && response.details.messages.length > 0) {
                // Sort messages by sentAt timestamp
-               const newMessages = response.message.messages.sort((a, b) => new Date(a.sentAt) - new Date(b.sentAt));
+               const newMessages = response.details.messages.sort((a, b) => new Date(a.sentAt) - new Date(b.sentAt));
                
                // Update the newest timestamp
                if (newMessages.length > 0) {

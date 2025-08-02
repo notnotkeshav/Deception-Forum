@@ -22,7 +22,7 @@ $(document).ready(() => {
          headers: { 'Authorization': `Bearer ${token}` },
          success: (response) => {
             if (response.success) {
-               renderMessages(response.message.messages, append);
+               renderMessages(response.details.messages, append);
                if (initialLoad) {
                   scrollToBottom();
                   initialLoad = false;
@@ -222,8 +222,8 @@ $(document).ready(() => {
          dataType: 'json',
          headers: { 'Authorization': `Bearer ${token}` },
          success: (response) => {
-            if (response.success && response.message.messages?.length) {
-               const newMessages = response.message.messages.sort((a, b) => new Date(a.sentAt) - new Date(b.sentAt));
+            if (response.success && response.details.messages?.length) {
+               const newMessages = response.details.messages.sort((a, b) => new Date(a.sentAt) - new Date(b.sentAt));
                newestMessageTime = newMessages[newMessages.length - 1].sentAt;
                appendNewMessages(newMessages);
                if (isAtBottom) scrollToBottom();

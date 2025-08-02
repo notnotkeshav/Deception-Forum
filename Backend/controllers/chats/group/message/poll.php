@@ -34,12 +34,12 @@ if ($method === 'GET') {
             }
         }
 
-        sendJsonResponse(200, ["success" => true, "messages" => $messages]);
+        sendJsonResponse(true, "messages fecthed succesfully", ["messages" => $messages], 200);
         exit;
     } catch (Exception $e) {
-        sendJsonResponse(500, ["success" => false, "message" => "Error fetching new messages: " . $e->getMessage()]);
+        sendJsonResponse(false, "Error fetching new messages", ["details" => "Error fetching new messages: " . $e->getMessage()], 500);
         exit;
     }
 } else {
-    sendJsonResponse(405, ["success" => false, "message" => "Invalid HTTP method."]);
+    sendJsonResponse(false, "", ["Invalid HTTP method."], 405);
 }
