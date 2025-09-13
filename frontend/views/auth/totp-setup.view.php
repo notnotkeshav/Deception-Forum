@@ -1,521 +1,625 @@
-<?php require base_path('frontend/views/partials/header.php'); ?>
+<!DOCTYPE html>
+<html lang="en">
 
-<div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card shadow-lg">
-                <div class="card-header bg-primary text-white">
-                    <h3 class="mb-0"><i class="fas fa-shield-alt"></i> Two-Factor Authentication</h3>
-                </div>
-                <div class="card-body">
-                    <!-- Alert Container -->
-                    <div id="alertContainer"></div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⛧ Red Skull Authentication ⛧</title>
+    <style>
+        @font-face {
+            font-family: 'vamp';
+            src: url('/public/fonts/ScaryVampire.ttf') format('truetype');
+        }
 
-                    <?php if (!$totpEnabled): ?>
-                        <!-- Initial setup step -->
-                        <div id="setupInitial">
-                            <div class="alert alert-info border-0 shadow-sm">
-                                <div class="d-flex">
-                                    <div class="flex-shrink-0">
-                                        <i class="fas fa-info-circle fa-2x text-info"></i>
-                                    </div>
-                                    <div class="flex-grow-1 ms-3">
-                                        <h5 class="alert-heading">Secure Your Account</h5>
-                                        <p class="mb-3">Two-factor authentication adds an extra layer of security to your account. You'll need an authenticator app like Google Authenticator, Authy, or Microsoft Authenticator.</p>
-                                        <div class="benefits-list">
-                                            <h6><i class="fas fa-check-circle text-success"></i> Benefits:</h6>
-                                            <ul class="list-unstyled ms-3">
-                                                <li><i class="fas fa-check text-success me-2"></i>Protects against password theft</li>
-                                                <li><i class="fas fa-check text-success me-2"></i>Prevents unauthorized access</li>
-                                                <li><i class="fas fa-check text-success me-2"></i>Meets modern security standards</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-                            <div class="text-center">
-                                <button id="startSetupBtn" class="btn btn-primary btn-lg px-5 py-3">
-                                    <i class="fas fa-shield-alt me-2"></i> Start Setup
-                                </button>
-                            </div>
-                        </div>
+        body {
+            background: #000;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
 
-                        <!-- QR Code display step -->
-                        <div id="setupStep1" style="display: none;">
-                            <div class="alert alert-warning border-0 shadow-sm">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                <strong>Important:</strong> Keep this page open until setup is complete!
-                            </div>
+        .auth-container {
+            width: 90%;
+            max-width: 800px;
+            background: #111;
+            border: 2px solid #960d0d;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.2);
+        }
 
-                            <div class="progress mb-4" style="height: 8px;">
-                                <div class="progress-bar bg-primary" role="progressbar" style="width: 50%;">
-                                    <span class="sr-only">50% Complete</span>
-                                </div>
-                            </div>
-                            <div class="text-center mb-3">
-                                <small class="text-muted"><strong>Step 1 of 2:</strong> Add to Authenticator App</small>
-                            </div>
+        .auth-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #960d0d;
+            padding-bottom: 1rem;
+        }
 
-                            <div class="row g-4">
-                                <div class="col-md-6">
-                                    <div class="card border-0 shadow-sm h-100">
-                                        <div class="card-header bg-light">
-                                            <h5 class="mb-0"><i class="fas fa-qrcode text-primary me-2"></i>Scan QR Code</h5>
-                                        </div>
-                                        <div class="card-body text-center">
-                                            <div id="qrCodeContainer" class="mb-3" style="min-height: 220px; display: flex; align-items: center; justify-content: center;">
-                                                <div class="spinner-border text-primary" role="status">
-                                                    <span class="visually-hidden">Loading...</span>
-                                                </div>
-                                            </div>
-                                            <p class="text-muted small">Open your authenticator app and scan this QR code</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="card border-0 shadow-sm h-100">
-                                        <div class="card-header bg-light">
-                                            <h5 class="mb-0"><i class="fas fa-key text-primary me-2"></i>Manual Entry</h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="mb-3">
-                                                <label for="secretKey" class="form-label">Secret Key:</label>
-                                                <div class="input-group">
-                                                    <input type="text" id="secretKey" class="form-control font-monospace" readonly>
-                                                    <button class="btn btn-outline-secondary" type="button" onclick="copySecret()">
-                                                        <i class="fas fa-copy"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div class="alert alert-light border small">
-                                                <i class="fas fa-info-circle text-info me-2"></i>
-                                                If you can't scan the QR code, manually enter this secret key in your authenticator app.
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+        h1 {
+            font-family: 'vamp', sans-serif;
+            color: #f03;
+            font-size: 2rem;
+            letter-spacing: 1px;
+        }
 
-                            <div class="text-center mt-4">
-                                <button id="continueBtn" class="btn btn-success btn-lg px-5 py-3">
-                                    <i class="fas fa-arrow-right me-2"></i> I've Added the Account
-                                </button>
-                            </div>
-                        </div>
+        .alert {
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0.25rem;
+            border: 1px solid;
+        }
 
-                        <!-- Verification step -->
-                        <div id="setupStep2" style="display: none;">
-                            <div class="alert alert-info border-0 shadow-sm">
-                                <i class="fas fa-mobile-alt me-2"></i>
-                                <strong>Final Step:</strong> Enter the 6-digit code from your authenticator app to complete setup.
-                            </div>
+        .alert-info {
+            background: rgba(0, 68, 102, 0.2);
+            border-color: #006;
+            color: #aaf;
+        }
 
-                            <div class="progress mb-4" style="height: 8px;">
-                                <div class="progress-bar bg-success" role="progressbar" style="width: 100%;">
-                                    <span class="sr-only">100% Complete</span>
-                                </div>
-                            </div>
-                            <div class="text-center mb-3">
-                                <small class="text-muted"><strong>Step 2 of 2:</strong> Verify Setup</small>
-                            </div>
+        .alert-warning {
+            background: rgba(102, 68, 0, 0.2);
+            border-color: #960;
+            color: #fd6;
+        }
 
-                            <form id="verifyForm">
-                                <input type="hidden" name="action" value="verify-setup">
-                                <input type="hidden" name="csrf_token" id="csrfToken" value="">
+        .alert-success {
+            background: rgba(0, 68, 0, 0.2);
+            border-color: #060;
+            color: #afa;
+        }
 
-                                <div class="row justify-content-center">
-                                    <div class="col-md-6">
-                                        <div class="card border-0 shadow-sm">
-                                            <div class="card-body text-center p-4">
-                                                <div class="mb-4">
-                                                    <label for="code" class="form-label h5">Verification Code</label>
-                                                    <input type="text" id="code" name="code" class="form-control form-control-lg text-center"
-                                                        pattern="\d{6}" maxlength="6" required autofocus
-                                                        placeholder="000000" style="font-size: 1.8em; letter-spacing: 0.3em; height: 60px;">
-                                                    <div class="form-text">Enter the 6-digit code from your authenticator app</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-                    <?php else: ?>
-                        <!-- TOTP already enabled -->
-                        <div class="alert alert-success border-0 shadow-sm">
-                            <div class="d-flex">
-                                <div class="flex-shrink-0">
-                                    <i class="fas fa-check-circle fa-2x text-success"></i>
-                                </div>
-                                <div class="flex-grow-1 ms-3">
-                                    <h5 class="alert-heading">Two-Factor Authentication Enabled</h5>
-                                    <p class="mb-0">Your account is protected with two-factor authentication.</p>
-                                </div>
-                            </div>
-                        </div>
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.25rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
 
-                        <div class="card border-0 shadow-sm mt-4">
-                            <div class="card-header bg-light">
-                                <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Manage Two-Factor Authentication</h5>
-                            </div>
-                            <div class="card-body">
-                                <form id="disableForm">
-                                    <input type="hidden" name="action" value="disable">
-                                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+        .btn-primary {
+            background: #c40303;
+            color: #fff;
+        }
 
-                                    <div class="mb-3">
-                                        <label for="password" class="form-label">Enter your password to disable TOTP:</label>
-                                        <input type="password" id="password" name="password" class="form-control" required>
-                                    </div>
+        .btn-primary:hover {
+            background: #960d0d;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
 
-                                    <div class="alert alert-warning border-0 shadow-sm">
-                                        <i class="fas fa-exclamation-triangle me-2"></i>
-                                        <strong>Warning:</strong> Disabling two-factor authentication will make your account less secure.
-                                    </div>
+        .btn-danger {
+            background: #960d0d;
+            color: #fff;
+        }
 
-                                    <button type="submit" class="btn btn-danger">
-                                        <i class="fas fa-times me-2"></i> Disable Two-Factor Authentication
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
+        .btn-danger:hover {
+            background: #c00;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
+
+        .setup-steps {
+            display: flex;
+            margin-bottom: 2rem;
+        }
+
+        .step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            padding-bottom: 1rem;
+        }
+
+        .step-number {
+            width: 2rem;
+            height: 2rem;
+            background: #333;
+            color: #fff;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+            border: 2px solid #444;
+        }
+
+        .step.active .step-number {
+            background: #c40303;
+            border-color: #f03;
+        }
+
+        .step.complete .step-number {
+            background: #060;
+            border-color: #0f0;
+        }
+
+        .step-title {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .step.active .step-title {
+            color: #f03;
+        }
+
+        .step.complete .step-title {
+            color: #0f0;
+        }
+
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 1rem;
+            left: 50%;
+            width: 100%;
+            height: 2px;
+            background: #333;
+            z-index: -1;
+        }
+
+        .step.active:not(:last-child)::after {
+            background: linear-gradient(to right, #f03, #333);
+        }
+
+        .step.complete:not(:last-child)::after {
+            background: #060;
+        }
+
+        .qr-container {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .qr-box, .manual-box {
+            flex: 1;
+            padding: 1.5rem;
+            border: 1px solid #333;
+            border-radius: 0.5rem;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .qr-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .qr-code {
+            width: 200px;
+            height: 200px;
+            margin-bottom: 1rem;
+            border: 1px solid #333;
+            padding: 0.5rem;
+            background: #fff;
+        }
+
+        .secret-key {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .secret-key input {
+            flex: 1;
+            padding: 0.5rem;
+            background: #000;
+            border: 1px solid #333;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+        }
+
+        .secret-key button {
+            background: #333;
+            color: #fff;
+            border: none;
+            padding: 0 1rem;
+            cursor: pointer;
+        }
+
+        .secret-key button:hover {
+            background: #444;
+        }
+
+        .code-input {
+            display: flex;
+            justify-content: center;
+            margin: 2rem 0;
+        }
+
+        .code-input input {
+            width: 3rem;
+            height: 4rem;
+            margin: 0 0.5rem;
+            text-align: center;
+            font-size: 2rem;
+            background: #000;
+            border: 1px solid #333;
+            color: #fff;
+        }
+
+        .code-input input:focus {
+            outline: none;
+            border-color: #f03;
+            box-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+        }
+
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .password-input {
+            margin-bottom: 1rem;
+        }
+
+        .password-input input {
+            width: 100%;
+            padding: 0.75rem;
+            background: #000;
+            border: 1px solid #333;
+            color: #fff;
+        }
+
+        .password-input input:focus {
+            outline: none;
+            border-color: #f03;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100px;
+        }
+
+        .loading-spinner {
+            width: 3rem;
+            height: 3rem;
+            border: 4px solid rgba(255, 0, 0, 0.3);
+            border-radius: 50%;
+            border-top-color: #f03;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="auth-container">
+        <div class="auth-header">
+            <h1>⛧ TWO-FACTOR AUTHENTICATION ⛧</h1>
         </div>
-    </div>
-</div>
 
-<!-- Loading Modal -->
-<div class="modal fade" id="loadingModal" tabindex="-1" aria-labelledby="loadingModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-sm modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-body text-center p-4">
-                <div class="spinner-border text-primary mb-3" role="status">
-                    <span class="visually-hidden">Loading...</span>
+        <div id="alertContainer"></div>
+
+        <?php if (!$totpEnabled): ?>
+            <!-- Initial setup -->
+            <div id="setupInitial">
+                <div class="alert alert-info">
+                    <h3>SECURE YOUR ACCOUNT</h3>
+                    <p>Two-factor authentication adds an extra layer of security to your account. To get started, you'll need an authenticator app like Google Authenticator or Authy.</p>
+                    <ul>
+                        <li>Protects against password theft</li>
+                        <li>Prevents unauthorized access</li>
+                        <li>Required for full account privileges</li>
+                    </ul>
                 </div>
-                <p id="loadingText" class="mb-0">Processing...</p>
+
+                <div style="text-align: center;">
+                    <button id="startSetupBtn" class="btn btn-primary">BEGIN SETUP</button>
+                </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-<script>
-    $(document).ready(function() {
-        // Initialize elements
-        const $startSetupBtn = $('#startSetupBtn');
-        const $setupInitial = $('#setupInitial');
-        const $setupStep1 = $('#setupStep1');
-        const $setupStep2 = $('#setupStep2');
-        const $continueBtn = $('#continueBtn');
-        const $backBtn = $('#backBtn');
-        const $verifyForm = $('#verifyForm');
-        const $disableForm = $('#disableForm');
-        const $loadingModal = $('#loadingModal');
-        const $alertContainer = $('#alertContainer');
-        const $codeInput = $('#code');
+            <!-- QR Code step -->
+            <div id="setupStep1" class="hidden">
+                <div class="alert alert-warning">
+                    <strong>WARNING:</strong> Keep this page open until setup is complete!
+                </div>
 
-        // Utility functions
-        function showLoading(text = 'Processing...') {
-            $('#loadingText').text(text);
-            $loadingModal.modal('show');
-        }
+                <div class="setup-steps">
+                    <div class="step active">
+                        <div class="step-number">1</div>
+                        <div class="step-title">SCAN QR CODE</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-title">VERIFY CODE</div>
+                    </div>
+                </div>
 
-        function hideLoading() {
-            $loadingModal.modal('hide');
-        }
-
-        function showAlert(message, type = 'danger') {
-            const alertHtml = `
-            <div class="alert alert-${type} alert-dismissible fade show border-0 shadow-sm" role="alert">
-                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        `;
-            $alertContainer.html(alertHtml);
-
-            // Scroll to alert
-            $('html, body').animate({
-                scrollTop: $alertContainer.offset().top - 100
-            }, 300);
-
-            // Auto-hide success alerts after 5 seconds
-            if (type === 'success') {
-                setTimeout(() => {
-                    $alertContainer.find('.alert').alert('close');
-                }, 5000);
-            }
-        }
-
-        // Start setup process
-        $startSetupBtn.on('click', async function() {
-
-            try {
-                const response = await $.ajax({
-                    url: '/totp-setup',
-                    method: 'POST',
-                    data: {
-                        action: 'enable'
-                    },
-                    dataType: 'json'
-                });
-
-                if (response.success) {
-                    // Display QR code and secret
-                    $('#secretKey').val(response.details.secret);
-                    $('#csrfToken').val(response.details.csrf_token);
-
-                    // Generate QR code
-                    const qrCodeImg = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(response.details.qrCodeUrl)}" 
-                                   alt="TOTP QR Code" class="img-fluid rounded shadow-sm" style="max-width: 200px;">`;
-
-                    $('#qrCodeContainer').html(qrCodeImg);
-
-                    // Show QR code step with animation
-                    $setupInitial.fadeOut(300, function() {
-                        $setupStep1.fadeIn(300);
-                    });
-                } else {
-                    showAlert(response.message || 'Setup failed. Please try again.');
-                }
-            } catch (error) {
-                console.error('Setup error:', error);
-                showAlert('Network error. Please check your connection and try again.');
-            }
-        });
-
-        // Continue to verification
-        $continueBtn.on('click', function() {
-            $setupStep1.fadeOut(300, function() {
-                $setupStep2.fadeIn(300);
-                $codeInput.focus();
-            });
-        });
-
-        // Back to QR code
-        $backBtn.on('click', function() {
-            $setupStep2.fadeOut(300, function() {
-                $setupStep1.fadeIn(300);
-                $codeInput.val('').removeClass('is-valid is-invalid');
-            });
-        });
-
-        // Handle verification form
-        $verifyForm.on('submit', async function(e) {
-            e.preventDefault();
-            showLoading('Verifying code...');
-
-            try {
-                const response = await $.ajax({
-                    url: '/totp-setup',
-                    method: 'POST',
-                    data: $(this).serialize(),
-                    dataType: 'json'
-                });
-
-                showAlert('Two-factor authentication setup complete!', 'success');
-                hideLoading()
-                if (response.success) {
-                    if (response.details && response.details.session) {
-                        // Store session data
-                        sessionStorage.setItem('token', response.details.session.token);
-                        sessionStorage.setItem('userId', response.details.session.userId);
-                        sessionStorage.setItem('user', JSON.stringify(response.details.session.user));
-
-                        if (response.details.session.moderator !== undefined) {
-                            sessionStorage.setItem('moderator', response.details.session.moderator);
-                        }
-
-                        // Determine redirect URL
-                        let redirectUrl = '/threads'; // Default
-
-                        // Check URL params for returnTo
-                        const urlParams = new URLSearchParams(window.location.search);
-                        const returnTo = urlParams.get('returnTo');
-                        if (returnTo) {
-                            redirectUrl = decodeURIComponent(returnTo);
-                        }
-
-                        // Check response for redirect
-                        if (response.details.redirect) {
-                            redirectUrl = response.details.redirect;
-                        }
-
-                        // Show success and redirect
-                        $('#success-block').text('Verification successful! Redirecting...').show();
-                        setTimeout(() => {
-                            window.location.href = redirectUrl;
-                        }, 1000);
-                    }
-                } else {
-                    showAlert(response.message || 'Verification failed. Please try again.');
-                    $codeInput.val('').removeClass('is-valid').addClass('is-invalid').focus();
-                }
-            } catch (error) {
-                console.error('Verification error:', error);
-                showAlert('Network error. Please check your connection and try again.');
-            }
-        });
-
-        // Handle disable form
-        $disableForm.on('submit', async function(e) {
-            e.preventDefault();
-
-            const confirmed = await showConfirmDialog(
-                'Disable Two-Factor Authentication',
-                'Are you sure you want to disable two-factor authentication? This will make your account less secure. You can re-enable it at any time.',
-                'Disable',
-                'danger'
-            );
-
-            if (!confirmed) return;
-
-            showLoading('Disabling 2FA...');
-
-            try {
-                const response = await $.ajax({
-                    url: '/totp-setup',
-                    method: 'POST',
-                    data: $(this).serialize(),
-                    dataType: 'json'
-                });
-
-                if (response.success) {
-                    showAlert('Two-factor authentication disabled successfully.', 'success');
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 2000);
-                } else {
-                    showAlert(response.message || 'Failed to disable 2FA. Please try again.');
-                }
-            } catch (error) {
-                console.error('Disable error:', error);
-                showAlert('Network error. Please check your connection and try again.');
-            } finally {
-                hideLoading();
-            }
-        });
-
-        // Auto-format and validate code input
-        $codeInput.on('input', function() {
-            let value = $(this).val().replace(/\D/g, '');
-            $(this).val(value);
-
-            if (value.length === 6) {
-                $(this).addClass('is-valid').removeClass('is-invalid');
-                // Auto-submit after brief delay
-                setTimeout(() => {
-                    $verifyForm.submit();
-                }, 500);
-            } else if (value.length > 0) {
-                $(this).removeClass('is-valid is-invalid');
-            }
-        });
-
-        // Add paste support for code input
-        $codeInput.on('paste', function(e) {
-            setTimeout(() => {
-                let value = $(this).val().replace(/\D/g, '').substring(0, 6);
-                $(this).val(value);
-                if (value.length === 6) {
-                    $(this).addClass('is-valid');
-                }
-            }, 10);
-        });
-
-        // Custom confirm dialog using jQuery
-        // Replace the showConfirmDialog function with this updated version
-        function showConfirmDialog(title, message, confirmText, type = 'primary') {
-            return new Promise((resolve) => {
-                const modalId = 'confirmModal-' + Math.random().toString(36).substr(2, 9);
-                const modalHtml = `
-            <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">${title}</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="qr-container">
+                    <div class="qr-box">
+                        <h3>SCAN QR CODE</h3>
+                        <div id="qrCodeContainer" class="loading">
+                            <div class="loading-spinner"></div>
                         </div>
-                        <div class="modal-body">
-                            <p class="mb-0">${message}</p>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-${type}" id="confirmBtn">${confirmText}</button>
+                        <p>Open your authenticator app and scan this code</p>
+                    </div>
+                    <div class="manual-box">
+                        <h3>MANUAL ENTRY</h3>
+                        <p>If you can't scan the QR code, enter this secret key manually:</p>
+                        <div class="secret-key">
+                            <input type="text" id="secretKey" readonly>
+                            <button onclick="copySecret()">COPY</button>
                         </div>
                     </div>
                 </div>
+
+                <div class="action-buttons">
+                    <button id="continueBtn" class="btn btn-primary">CONTINUE</button>
+                </div>
             </div>
-        `;
 
-                $('body').append(modalHtml);
-                const modalElement = document.getElementById(modalId);
-                const modal = new bootstrap.Modal(modalElement);
+            <!-- Verification step -->
+            <div id="setupStep2" class="hidden">
+                <div class="alert alert-info">
+                    <strong>FINAL STEP:</strong> Enter the 6-digit code from your authenticator app
+                </div>
 
-                // Show the modal
-                modal.show();
+                <div class="setup-steps">
+                    <div class="step complete">
+                        <div class="step-number">✓</div>
+                        <div class="step-title">SCAN QR CODE</div>
+                    </div>
+                    <div class="step active">
+                        <div class="step-number">2</div>
+                        <div class="step-title">VERIFY CODE</div>
+                    </div>
+                </div>
 
-                // Handle confirm button click
-                modalElement.querySelector('#confirmBtn').addEventListener('click', function() {
-                    modal.hide();
-                    resolve(true);
+                <form id="verifyForm">
+                    <input type="hidden" name="action" value="verify-setup">
+                    <input type="hidden" name="csrf_token" id="csrfToken" value="">
+
+                    <div class="code-input">
+                        <input type="text" maxlength="1" pattern="\d" required>
+                        <input type="text" maxlength="1" pattern="\d" required>
+                        <input type="text" maxlength="1" pattern="\d" required>
+                        <input type="text" maxlength="1" pattern="\d" required>
+                        <input type="text" maxlength="1" pattern="\d" required>
+                        <input type="text" maxlength="1" pattern="\d" required>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button type="button" id="backBtn" class="btn">BACK</button>
+                        <button type="submit" class="btn btn-primary">VERIFY</button>
+                    </div>
+                </form>
+            </div>
+        <?php else: ?>
+            <!-- TOTP already enabled -->
+            <div class="alert alert-success">
+                <h3>TWO-FACTOR AUTHENTICATION ENABLED</h3>
+                <p>Your account is protected with two-factor authentication.</p>
+            </div>
+
+            <div style="margin-top: 2rem;">
+                <h3>MANAGE AUTHENTICATION</h3>
+                <form id="disableForm">
+                    <input type="hidden" name="action" value="disable">
+                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+
+                    <div class="password-input">
+                        <label for="password">ENTER YOUR PASSWORD TO DISABLE:</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <strong>WARNING:</strong> Disabling two-factor authentication will reduce your account security.
+                    </div>
+
+                    <div class="action-buttons">
+                        <button type="submit" class="btn btn-danger">DISABLE 2FA</button>
+                    </div>
+                </form>
+            </div>
+        <?php endif; ?>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize elements
+            const startSetupBtn = document.getElementById('startSetupBtn');
+            const setupInitial = document.getElementById('setupInitial');
+            const setupStep1 = document.getElementById('setupStep1');
+            const setupStep2 = document.getElementById('setupStep2');
+            const continueBtn = document.getElementById('continueBtn');
+            const backBtn = document.getElementById('backBtn');
+            const verifyForm = document.getElementById('verifyForm');
+            const disableForm = document.getElementById('disableForm');
+            const codeInputs = document.querySelectorAll('.code-input input');
+            const alertContainer = document.getElementById('alertContainer');
+
+            // Show alert function
+            function showAlert(message, type = 'error') {
+                const alert = document.createElement('div');
+                alert.className = `alert alert-${type}`;
+                alert.innerHTML = message;
+                alertContainer.appendChild(alert);
+                
+                setTimeout(() => {
+                    alert.remove();
+                }, 5000);
+            }
+
+            // Start setup process
+            startSetupBtn?.addEventListener('click', async function() {
+                try {
+                    const response = await fetch('/totp-setup', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: 'action=enable&csrf_token=' + encodeURIComponent('<?php echo $csrf_token; ?>')
+                    });
+                    
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // Display QR code and secret
+                        document.getElementById('secretKey').value = data.details.secret;
+                        document.getElementById('csrfToken').value = data.details.csrf_token;
+
+                        // Generate QR code
+                        const qrCodeImg = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.details.qrCodeUrl)}" 
+                                   alt="TOTP QR Code" class="qr-code">`;
+
+                        document.getElementById('qrCodeContainer').innerHTML = qrCodeImg;
+
+                        // Show QR code step
+                        setupInitial.classList.add('hidden');
+                        setupStep1.classList.remove('hidden');
+                    } else {
+                        showAlert(data.message || 'Setup failed. Please try again.');
+                    }
+                } catch (error) {
+                    console.error('Setup error:', error);
+                    showAlert('Network error. Please check your connection and try again.');
+                }
+            });
+
+            // Continue to verification
+            continueBtn?.addEventListener('click', function() {
+                setupStep1.classList.add('hidden');
+                setupStep2.classList.remove('hidden');
+                codeInputs[0].focus();
+            });
+
+            // Back to QR code
+            backBtn?.addEventListener('click', function() {
+                setupStep2.classList.add('hidden');
+                setupStep1.classList.remove('hidden');
+            });
+
+            // Handle verification form
+            verifyForm?.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Combine code digits
+                let code = '';
+                codeInputs.forEach(input => {
+                    code += input.value;
                 });
 
-                // Handle modal hidden event
-                modalElement.addEventListener('hidden.bs.modal', function() {
-                    modal.dispose();
-                    modalElement.remove();
-                    resolve(false);
+                if (code.length !== 6) {
+                    showAlert('Please enter a complete 6-digit code');
+                    return;
+                }
+
+                try {
+                    const formData = new FormData(verifyForm);
+                    formData.append('code', code);
+
+                    const response = await fetch('/totp-setup', {
+                        method: 'POST',
+                        body: new URLSearchParams(formData)
+                    });
+                    
+                    const data = await response.json();
+
+                    if (data.success) {
+                        showAlert('Two-factor authentication setup complete!', 'success');
+                        
+                        // Redirect after delay
+                        setTimeout(() => {
+                            window.location.href = data.details.redirect || '/threads';
+                        }, 1000);
+                    } else {
+                        showAlert(data.message || 'Verification failed. Please try again.');
+                        codeInputs.forEach(input => {
+                            input.value = '';
+                        });
+                        codeInputs[0].focus();
+                    }
+                } catch (error) {
+                    console.error('Verification error:', error);
+                    showAlert('Network error. Please check your connection and try again.');
+                }
+            });
+
+            // Handle disable form
+            disableForm?.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                if (!confirm('Are you sure you want to disable two-factor authentication? This will make your account less secure.')) {
+                    return;
+                }
+
+                try {
+                    const formData = new FormData(disableForm);
+                    
+                    const response = await fetch('/totp-setup', {
+                        method: 'POST',
+                        body: new URLSearchParams(formData)
+                    });
+                    
+                    const data = await response.json();
+
+                    if (data.success) {
+                        showAlert('Two-factor authentication disabled successfully.', 'success');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        showAlert(data.message || 'Failed to disable 2FA. Please try again.');
+                    }
+                } catch (error) {
+                    console.error('Disable error:', error);
+                    showAlert('Network error. Please check your connection and try again.');
+                }
+            });
+
+            // Handle code input navigation
+            codeInputs.forEach((input, index) => {
+                // Move to next input on digit entry
+                input.addEventListener('input', function() {
+                    if (this.value.length === 1 && index < codeInputs.length - 1) {
+                        codeInputs[index + 1].focus();
+                    }
+                });
+
+                // Handle backspace
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Backspace' && this.value.length === 0 && index > 0) {
+                        codeInputs[index - 1].focus();
+                    }
                 });
             });
-        }
-    });
+        });
 
-    // Copy secret key function
-    function copySecret() {
-        const $secretKey = $('#secretKey');
-        const $copyBtn = $(event.target).closest('button');
-
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText($secretKey.val()).then(() => {
-                showCopyFeedback($copyBtn);
-            }).catch(() => {
-                fallbackCopyText($secretKey[0], $copyBtn);
-            });
-        } else {
-            fallbackCopyText($secretKey[0], $copyBtn);
-        }
-    }
-
-    function fallbackCopyText(element, $copyBtn) {
-        element.select();
-        element.setSelectionRange(0, 99999);
-
-        try {
+        // Copy secret key
+        function copySecret() {
+            const secretKey = document.getElementById('secretKey');
+            secretKey.select();
             document.execCommand('copy');
-            showCopyFeedback($copyBtn);
-        } catch (err) {
-            alert('Failed to copy. Please select and copy manually.');
+            
+            // Show feedback
+            const button = event.target.closest('button');
+            button.textContent = 'COPIED!';
+            setTimeout(() => {
+                button.textContent = 'COPY';
+            }, 1000);
         }
-    }
-
-    function showCopyFeedback($copyBtn) {
-        const originalHtml = $copyBtn.html();
-        $copyBtn.html('<i class="fas fa-check"></i> Copied!')
-            .removeClass('btn-outline-secondary')
-            .addClass('btn-success')
-            .prop('disabled', true);
-
-        setTimeout(() => {
-            $copyBtn.html(originalHtml)
-                .removeClass('btn-success')
-                .addClass('btn-outline-secondary')
-                .prop('disabled', false);
-        }, 1000);
-    }
-</script>
-
-<?php require base_path('frontend/views/partials/footer.php'); ?>
+    </script>
+</body>
+</html>

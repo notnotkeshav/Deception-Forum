@@ -1,4 +1,11 @@
-<?php require(base_path("/frontend/views/partials/header.php")); ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threads</title>
+</head>
+<body>
 <?php require(base_path("/frontend/views/partials/navbar.php")); ?>
 
 <div class="container mt-4">
@@ -35,4 +42,5 @@
     </nav>
 </div>
 
-<?php require(base_path("/frontend/views/partials/footer.php")); ?>
+</body>
+</html>

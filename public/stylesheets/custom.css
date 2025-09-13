@@ -1,0 +1,70 @@
+/* Custom hacker forum theme */
+body {
+    background-color: #000;
+    color: #fff;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+.container {
+    width: 80%;
+    margin: 20px auto;
+}
+
+h2,
+label {
+    color: #e60000;
+}
+
+form {
+    background-color: #111;
+    border: 1px solid #e60000;
+    padding: 20px;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input.captcha-input {
+    background-color: #222;
+    border: 1px solid #e60000;
+    color: #fff;
+    padding: 8px;
+    border-radius: 3px;
+    width: 100%;
+}
+
+button {
+    background-color: #e60000;
+    color: #fff;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 3px;
+}
+
+button:hover {
+    background-color: #b30000;
+}
+
+.captcha-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#captcha-img {
+    border: 1px solid #e60000;
+    cursor: pointer;
+}
+
+#error-block {
+    color: #e60000;
+}
+
+#success-block {
+    color: #00ff00;
+}

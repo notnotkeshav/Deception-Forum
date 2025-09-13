@@ -3,20 +3,25 @@
 $router->get("/", "home.php"); // Render the homepage
 
 // Authentication Routes
-$router->get("/signup", "auth/signup.php")->only('guest'); // Display the signup page (guests only) - supports invite code via query parameter
-$router->post("/signup", "auth/signup.php")->only('guest'); // Process signup form submission (guests only)
-$router->get("/signin", "auth/signin.php")->only('guest'); // Display the signin page (guests only) - supports invite code via query parameter
-$router->post("/signin", "auth/signin.php")->only('guest'); // Process signin form submission (guests only)
-$router->post("/signout", "auth/signout.php")->only('auth'); // Handle user sign-out (authenticated users only)
-$router->get("/generate_invite_code", "auth/invite.php")->only('auth'); // Display invite code generation page (authenticated users only)
-$router->post("/generate_invite_code", "auth/invite.php")->only('auth'); // Process invite code generation (authenticated users only)
-$router->get("/username", "auth/generate_username.php")->only('guest'); // Generate a unique username (guests only)
+// Auth Routes (Keep as-is - correct)
+$router->get("/signup", "auth/signup.php")->middleware('guest');
+$router->post("/signup", "auth/signup.php")->middleware('guest'); 
+$router->get("/signin", "auth/signin.php")->middleware('guest');
+$router->post("/signin", "auth/signin.php")->middleware('guest'); 
+$router->get("/username", "auth/generate_username.php")->middleware('guest')->middleware('username_rate_limit');
 
-// TOPT TFA Routes
-$router->get("/totp-setup", "auth/totp_setup.php")->only('auth'); // Display TOTP setup page
-$router->post("/totp-setup", "auth/totp_setup.php")->only('auth'); // Handle TOTP setup
-$router->get("/verify-totp", "auth/verify_totp.php")->only('partial_auth'); // Display TOTP verification page
-$router->post("/verify-totp", "auth/verify_totp.php")->only('partial_auth'); // Handle TOTP verification
+// Updated Routes
+$router->post("/signout", "auth/signout.php")->only('auth'); // Allow both full and partial auth users to sign out
+$router->get("/generate_invite_code", "auth/invite.php")->middleware('auth'); // Keep as auth - only fully authenticated users
+$router->post("/generate_invite_code", "auth/invite.php")->middleware('auth'); // Keep as auth - only fully authenticated users
+
+// TOTP Routes (Updated)
+$router->get("/totp-setup", "auth/totp_setup.php"); // Allow both full and partial auth for TOTP setup
+$router->post("/totp-setup", "auth/totp_setup.php"); // Allow both full and partial auth for TOTP setup
+
+$router->get("/verify-totp", "auth/verify_totp.php")->middleware('partial_auth'); // Keep as partial_auth - correct
+$router->post("/verify-totp", "auth/verify_totp.php")->middleware('partial_auth'); // Keep as partial_auth - correct
+
 
 // Password Management Routes
 $router->get("/change-password", "auth/password/change.php")->only('auth'); // Display change password form (authenticated users only)
@@ -47,7 +52,11 @@ $router->put("/comment/vote", "comments/vote.php")->only('auth'); // Cast a vote
 
 // Notification Routes
 $router->get("/notifications", "notifications/index.php")->only('auth'); // loads the notification page
-$router->get("/notifications/stream", "notifications/notify.php")->only('auth'); // SSE notification stream
+$router->post("/notifications", "notifications/index.php")->only('auth'); // Handle AJAX notification actions
+$router->get("/notifications/poll", "notifications/poll.php")->only('auth'); // Long polling endpoint
+$router->get("/notifications/settings", "notifications/settings.php")->only('auth'); // notification settings page
+$router->post("/notifications/settings", "notifications/settings.php")->only('auth'); // update notification settings
+$router->put("/notifications/settings", "notifications/settings.php")->only('auth'); // AJAX update individual setting
 $router->post("/notifications/mark-read", "notifications/mark-read.php")->only('auth'); // Mark notification as read
 $router->get("/notifications/count", "notifications/count.php")->only('auth'); // Get unread count
 $router->post("/notifications/subscribe", "notifications/subscribe.php")->only('auth'); // Subscribe to notifications
@@ -86,3 +95,7 @@ $router->post("/group-chat/member/add", "chats/group/member/add.php")->only('aut
 
 // User Profile Routes
 $router->get("/user", "user/details.php")->only('auth'); // View authenticated user's profile details
+
+// Captcha Routes
+$router->get('/captcha', 'captcha/index.php');
+$router->post('/captcha', 'captcha/index.php');

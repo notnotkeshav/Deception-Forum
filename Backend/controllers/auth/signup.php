@@ -1,4 +1,5 @@
 <?php
+// Updated signup.php with proper username flow
 
 use Backend\Core\App;
 use Backend\Utils\Validator;
@@ -13,23 +14,29 @@ if ($method === 'GET') {
         header("location: /");
         exit();
     } else {
+        // Just pass minimal data - let JavaScript handle username initialization
         view("auth/signup.view.php", [
             "heading" => "SignUp",
-            "username" => generateUsername(random_int(15, 25))
+            "cache" => $cache
         ]);
     }
-    // From Here
-    $password = generateRandomPassword();
-    $reversedPassword = strrev($password);
-
-    echo "generatePassword=> " . $password . "<br>reversedPassword=>  " . $reversedPassword;
-    exit();
-    // To Here => this will lead to render the GET even after the check says token not found
-
 } else {
     try {
         // Begin transaction to group all database operations
         $db->beginTransaction();
+
+        // Validate username is server-generated
+        $submittedUsername = $_POST['username'] ?? '';
+        $ipAddress = $_SERVER['REMOTE_ADDR'];
+        $ipHash = hash('sha256', $ipAddress);
+        $cachedUsernames = $cache->get("username_pool_ip:" . $ipHash)['value'] ?? [];
+
+        // Validate username against cached usernames
+        if (empty($cachedUsernames) || !in_array($submittedUsername, $cachedUsernames, true)) {
+            sendJsonResponse(false, "Invalid username. Please use a generated username.", [
+                'available_usernames' => $cachedUsernames
+            ], 400);
+        }
 
         // Get cached invite code
         $params = getQueryParams();
@@ -53,6 +60,7 @@ if ($method === 'GET') {
         }
 
         // Validate email
+        error_log("Validating email: " . print_r($_POST, true));
         if (!Validator::email($_POST['email'])) {
             sendJsonResponse(false, "Invalid Email", ["details" => "The provided email is not valid."], 400);
         }
@@ -89,6 +97,13 @@ if ($method === 'GET') {
             sendJsonResponse(false, "User already exists", ["email" => $_POST['email']], 409);
         }
 
+        // Check for duplicate username
+        $stmt = $db->query("SELECT id FROM users WHERE username = :username AND isDeleted = 0", [":username" => $submittedUsername]);
+        $existingUser = $db->getOne($stmt);
+        if (!empty($existingUser)) {
+            sendJsonResponse(false, "Username already exists", ["username" => $submittedUsername], 409);
+        }
+
         // Hash the password
         $hashedPassword = password_hash($_POST['password'], PASSWORD_BCRYPT);
         $generatedCode = generateLoginUrl();
@@ -96,7 +111,7 @@ if ($method === 'GET') {
         // Insert new user
         $db->query("INSERT INTO users (email, username, passwordHash, name, loginUrl, accessLevel, timezone, profilePic) VALUES (:email, :username, :password, :name, :loginUrl, :access_level, :timezone, :profilePic)", [
             ":email" => $_POST['email'],
-            ":username" => $_POST['username'],
+            ":username" => $submittedUsername,
             ":password" => $hashedPassword,
             ":name" => $_POST['name'],
             ":loginUrl" => $generatedCode,
@@ -104,6 +119,7 @@ if ($method === 'GET') {
             ":timezone" => $_POST['timezone'] ?? "UTC",
             ":profilePic" => $_POST['profilePic'] ?? null
         ]);
+
         $stmt = $db->query("SELECT id FROM users WHERE email = :email", [":email" => $_POST['email']]);
         $lastUserId = $db->getOne($stmt)['id'];
 
@@ -126,8 +142,11 @@ if ($method === 'GET') {
             'used' => 1,
             'usedBy' => $lastUserId
         ];
-        // $cache->delete("invitecode:" . $params['invite']);
         $cache->set("invitecode:" . $params['invite'], $updatedInviteCode);
+
+        // Clear username cache for this IP after successful signup
+        $cache->delete("username_pool_ip:" . $ipHash);
+        $cache->delete("username_gen_ip:" . $ipHash);
 
         // Generate the login URL
         $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
@@ -147,7 +166,7 @@ if ($method === 'GET') {
         $db->commit();
 
         // Respond with success
-        sendJsonResponse(true, "User registration successful", 201);
+        sendJsonResponse(true, "User registration successful", [], 201);
     } catch (Exception $e) {
         // Rollback transaction and respond with error
         $db->rollBack();

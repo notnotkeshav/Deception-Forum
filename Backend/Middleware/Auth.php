@@ -6,32 +6,29 @@ class Auth
 {
    public function handle()
    {
-      if (!empty($_SESSION['partial_auth'])) {
-         header('location: /verify-totp');
-         exit();
-      }
-
-      // Standard auth check
       if (empty($_SESSION['user'])) {
-         header('location: /signin');
-         exit();
-      }
-      
-      if (!$_SESSION['token'] ?? false) {
-         header('location: /signin');
+         header('Location: /signin');
          exit();
       }
 
-      // Check if TOTP is required but not verified
-      if ($_SESSION['user']['totp_enabled'] && empty($_SESSION['totp_verified'])) {
-         // Store partial auth and redirect to TOTP verification
-         $_SESSION['partial_auth'] = [
-               'userId' => $_SESSION['user']['id'],
-               'expires' => time() + 300 // 5 minutes
-         ];
+      $user = $_SESSION['user'];
+      $hasTotpEnabled = $user['totp_enabled'] ?? false;
+      $loginCount = $user['login_count'] ?? 0;
+
+      // Redirect based on TOTP setup
+      if ($loginCount === 0 || !$hasTotpEnabled) {
+         // First time login or TOTP not enabled yet
          unset($_SESSION['user']);
-         header('location: /verify-totp');
+         $_SESSION['partial_auth'] = [
+            'userId' => $user['id'],
+            'expires' => time() + 300, // 5 minutes
+            'csrf_token' => bin2hex(random_bytes(32)),
+            'setup_required' => true
+         ];
+         header('Location: /totp-setup');
          exit();
       }
+
+      // User fully authenticated with TOTP enabled
    }
 }

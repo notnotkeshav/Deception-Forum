@@ -1,6 +1,7 @@
 <?php
 
 use Backend\Core\App;
+use Backend\Utils\NotificationManager;
 
 $db = App::container()->resolve('Core\Database');
 $cache = App::container()->resolve('Core\Cache');
@@ -21,7 +22,7 @@ if ($method === 'POST') {
         : null;
 
     // Check if the thread is locked
-    $stmt = $db->query("SELECT locked FROM threads WHERE id = :id", [":id" => $threadId]);
+    $stmt = $db->query("SELECT locked, authorId FROM threads WHERE id = :id", [":id" => $threadId]);
     $thread = $db->getOne($stmt);
 
     if ($thread && $thread['locked'] == 1) {
@@ -43,6 +44,40 @@ if ($method === 'POST') {
         if ($stmt) {
             $commentId = $db->lastInsertId();
             $cache->delete("thread:" . $threadId);
+            
+            // Send notifications
+            $notificationManager = new NotificationManager();
+            
+            if ($parentCommentId) {
+                // This is a reply to a comment
+                $parentStmt = $db->query("SELECT userId FROM comments WHERE id = :id", [":id" => $parentCommentId]);
+                $parentComment = $db->getOne($parentStmt);
+                
+                if ($parentComment) {
+                    $notificationManager->notifyCommentReply($parentCommentId, $userId, $parentComment['userId']);
+                }
+            } else {
+                // This is a comment on the thread
+                if ($thread) {
+                    $notificationManager->notifyThreadComment($threadId, $userId, $thread['authorId']);
+                }
+            }
+            
+            // Check for mentions in the comment content
+            if (preg_match_all('/@(\w+)/', $content, $matches)) {
+                $mentionedUsernames = array_unique($matches[1]);
+                
+                foreach ($mentionedUsernames as $username) {
+                    // Get user ID by username
+                    $userStmt = $db->query("SELECT id FROM users WHERE username = :username", [":username" => $username]);
+                    $mentionedUser = $db->getOne($userStmt);
+                    
+                    if ($mentionedUser && $mentionedUser['id'] !== $userId) {
+                        $notificationManager->notifyMention($mentionedUser['id'], $userId, $threadId, $commentId);
+                    }
+                }
+            }
+            
             sendJsonResponse(true, "Comment created");
         } else {
             throw new Exception("Failed to add comment.");

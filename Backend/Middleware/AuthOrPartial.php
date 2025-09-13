@@ -2,9 +2,24 @@
 
 namespace Backend\Middleware;
 
-class Guest {
-    public function handle() {
-        if (!empty($_SESSION['user'])) {
+class AuthOrPartial
+{
+    public function handle()
+    {
+        $hasFullAuth = !empty($_SESSION['user']);
+        $hasPartialAuth = isset($_SESSION['partial_auth']) && $_SESSION['partial_auth']['expires'] > time();
+
+        if (!$hasFullAuth && !$hasPartialAuth) {
+            header('Location: /signin');
+            exit();
+        }
+
+        if ($hasPartialAuth) {
+            // Allow access to TOTP setup and verification pages
+            return;
+        }
+
+        if ($hasFullAuth) {
             $user = $_SESSION['user'];
             $hasTotpEnabled = $user['totp_enabled'] ?? false;
             $loginCount = $user['login_count'] ?? 0;
@@ -19,19 +34,10 @@ class Guest {
                 ];
                 header('Location: /totp-setup');
                 exit();
-            } else {
-                header('Location: /threads');
-                exit();
             }
         }
 
-        if (!empty($_SESSION['partial_auth'])) {
-            header('Location: /totp-setup');
-            exit();
-        }
-
-        // Guests allowed to access
+        // Otherwise, allow access
         return;
     }
 }
-?>
