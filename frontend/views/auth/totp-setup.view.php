@@ -180,7 +180,8 @@
             margin-bottom: 2rem;
         }
 
-        .qr-box, .manual-box {
+        .qr-box,
+        .manual-box {
             flex: 1;
             padding: 1.5rem;
             border: 1px solid #333;
@@ -298,8 +299,63 @@
             animation: spin 1s linear infinite;
         }
 
+        .backup-codes-container {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .backup-code-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            letter-spacing: 1px;
+        }
+
+        .backup-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .warning-text {
+            color: #d9534f;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 30px;
+            border: 1px solid #888;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 600px;
+        }
+
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
@@ -367,6 +423,29 @@
 
                 <div class="action-buttons">
                     <button id="continueBtn" class="btn btn-primary">CONTINUE</button>
+                </div>
+            </div>
+
+            <div id="backupCodesModal" class="modal" style="display:none;">
+                <div class="modal-content">
+                    <h3>⚠️ Save Your Backup Codes</h3>
+                    <p class="warning-text">Store these codes in a safe place. Each code can only be used once.</p>
+
+                    <div id="backupCodesList" class="backup-codes-container">
+                        <!-- Codes will be inserted here via JavaScript -->
+                    </div>
+
+                    <div class="backup-actions">
+                        <button id="downloadBackupCodes" class="btn btn-primary">
+                            <i class="fas fa-download"></i> Download Codes
+                        </button>
+                        <button id="copyBackupCodes" class="btn btn-secondary">
+                            <i class="fas fa-copy"></i> Copy to Clipboard
+                        </button>
+                        <button id="confirmBackupSaved" class="btn btn-success">
+                            <i class="fas fa-check"></i> I've Saved These Codes
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -456,7 +535,7 @@
                 alert.className = `alert alert-${type}`;
                 alert.innerHTML = message;
                 alertContainer.appendChild(alert);
-                
+
                 setTimeout(() => {
                     alert.remove();
                 }, 5000);
@@ -472,7 +551,7 @@
                         },
                         body: 'action=enable&csrf_token=' + encodeURIComponent('<?php echo $csrf_token; ?>')
                     });
-                    
+
                     const data = await response.json();
 
                     if (data.success) {
@@ -514,7 +593,7 @@
             // Handle verification form
             verifyForm?.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                
+
                 // Combine code digits
                 let code = '';
                 codeInputs.forEach(input => {
@@ -534,12 +613,12 @@
                         method: 'POST',
                         body: new URLSearchParams(formData)
                     });
-                    
+
                     const data = await response.json();
 
                     if (data.success) {
                         showAlert('Two-factor authentication setup complete!', 'success');
-                        
+
                         // Redirect after delay
                         setTimeout(() => {
                             window.location.href = data.details.redirect || '/threads';
@@ -560,19 +639,19 @@
             // Handle disable form
             disableForm?.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                
+
                 if (!confirm('Are you sure you want to disable two-factor authentication? This will make your account less secure.')) {
                     return;
                 }
 
                 try {
                     const formData = new FormData(disableForm);
-                    
+
                     const response = await fetch('/totp-setup', {
                         method: 'POST',
                         body: new URLSearchParams(formData)
                     });
-                    
+
                     const data = await response.json();
 
                     if (data.success) {
@@ -612,7 +691,7 @@
             const secretKey = document.getElementById('secretKey');
             secretKey.select();
             document.execCommand('copy');
-            
+
             // Show feedback
             const button = event.target.closest('button');
             button.textContent = 'COPIED!';
@@ -620,6 +699,111 @@
                 button.textContent = 'COPY';
             }, 1000);
         }
+
+        // Handle backup codes after verification
+        function displayBackupCodes(codes) {
+            const modal = document.getElementById('backupCodesModal');
+            const codesList = document.getElementById('backupCodesList');
+
+            // Clear existing codes
+            codesList.innerHTML = '';
+
+            // Add each code
+            codes.forEach((code, index) => {
+                const codeDiv = document.createElement('div');
+                codeDiv.className = 'backup-code-item';
+                codeDiv.textContent = `${index + 1}. ${code}`;
+                codesList.appendChild(codeDiv);
+            });
+
+            // Show modal
+            modal.style.display = 'block';
+
+            // Store codes temporarily for download/copy
+            window.backupCodes = codes;
+        }
+
+        // Download backup codes as text file
+        document.getElementById('downloadBackupCodes').addEventListener('click', function() {
+            const codes = window.backupCodes;
+            const timestamp = new Date().toISOString().split('T')[0];
+            const content = `Two-Factor Authentication Backup Codes
+Generated: ${new Date().toLocaleString()}
+
+IMPORTANT: Keep these codes safe and secure!
+Each code can only be used once.
+
+${codes.map((code, i) => `${i + 1}. ${code}`).join('\n')}
+
+If you lose access to your authenticator app, use one of these codes to sign in.
+After using a code, it will no longer be valid.`;
+
+            const blob = new Blob([content], {
+                type: 'text/plain'
+            });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `totp-backup-codes-${timestamp}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        });
+
+        // Copy codes to clipboard
+        document.getElementById('copyBackupCodes').addEventListener('click', function() {
+            const codes = window.backupCodes;
+            const text = codes.join('\n');
+
+            navigator.clipboard.writeText(text).then(function() {
+                alert('Backup codes copied to clipboard!');
+            }).catch(function(err) {
+                console.error('Failed to copy:', err);
+            });
+        });
+
+        // Confirm codes saved
+        document.getElementById('confirmBackupSaved').addEventListener('click', function() {
+            const modal = document.getElementById('backupCodesModal');
+            modal.style.display = 'none';
+
+            // Redirect based on context
+            if (window.location.search.includes('redirect')) {
+                window.location.href = '/verify-totp';
+            } else {
+                window.location.reload();
+            }
+        });
+
+        // Update the verify setup success handler
+        // In the existing verifySetupCode function, after successful verification:
+        fetch('/totp-setup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=verify-setup&code=${code}&csrf_token=${csrfToken}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Display backup codes
+                    if (data.backup_codes) {
+                        displayBackupCodes(data.backup_codes);
+                    } else {
+                        // Fallback if no codes returned
+                        if (data.redirect) {
+                            window.location.href = data.redirect;
+                        } else {
+                            window.location.reload();
+                        }
+                    }
+                } else {
+                    showError(data.message);
+                }
+            });
     </script>
 </body>
+
 </html>

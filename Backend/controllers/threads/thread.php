@@ -7,7 +7,7 @@ $cache = App::container()->resolve('Core\Cache');
 
 $params = getQueryParams();
 if (!isset($params['id'])) {
-   sendJsonResponse(404, ["success" => false, "message" => "Thread ID not found"]);
+   sendJsonResponse(false, "Thread ID not found", [], 404);
 }
 
 $threadId = $params['id'];
@@ -69,15 +69,14 @@ if ($method === 'GET') {
             }
 
             $cache->set("thread:" . $threadId, $thread);
+            $db->commit();
          } else {
             $db->rollBack();
-            sendJsonResponse(404, ["success" => false, "message" => "No thread found with the provided ID."]);
+            sendJsonResponse(false, "No thread found with the provided ID.", [], 404);
          }
-
-         $db->commit();
       } catch (Exception $e) {
          $db->rollBack();
-         sendJsonResponse(500, ["success" => false, "message" => "An error occurred while fetching the thread."]);
+         sendJsonResponse(false, "An error occurred while fetching the thread.", ["error" => $e->getMessage()], 500);
       }
    }
 
@@ -98,17 +97,17 @@ if ($method === 'GET') {
 
       if (!$existingThread) {
          $db->rollBack();
-         sendJsonResponse(404, ["success" => false, "message" => "Thread not found or already deleted."]);
+         sendJsonResponse(false, "Thread not found or already deleted.", [], 404);
       }
 
       if ($existingThread['locked']) {
          $db->rollBack();
-         sendJsonResponse(403, ["success" => false, "message" => "This thread is locked and cannot be deleted."]);
+         sendJsonResponse(false, "This thread is locked and cannot be deleted.", [], 403);
       }
 
       if ($existingThread['userId'] !== $_SESSION['userId']) {
          $db->rollBack();
-         sendJsonResponse(403, ["success" => false, "message" => "Access Denied"]);
+         sendJsonResponse(false, "Access Denied", [], 403);
       }
 
       $stmt = $db->query(
@@ -124,15 +123,15 @@ if ($method === 'GET') {
 
       if ($db->rowCount($stmt) !== 0) {
          $db->commit();
-         sendJsonResponse(200, ["success" => true, "message" => "Thread deleted successfully."]);
+         sendJsonResponse(true, "Thread deleted successfully.", [], 200);
       } else {
          $db->rollBack();
-         sendJsonResponse(403, ["success" => false, "message" => "Access Denied"]);
+         sendJsonResponse(false, "Access Denied", [], 403);
       }
    } catch (Exception $e) {
       $db->rollBack();
-      sendJsonResponse(500, ["success" => false, "message" => "An error occurred while deleting the thread."]);
+      sendJsonResponse(false, "An error occurred while deleting the thread.", ["error" => $e->getMessage()], 500);
    }
 } else {
-   sendJsonResponse(405, ["success" => false, "message" => "Invalid HTTP method."]);
+   sendJsonResponse(false, "Invalid HTTP method.", [], 405);
 }

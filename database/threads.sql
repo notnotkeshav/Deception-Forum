@@ -36,7 +36,7 @@ CREATE TABLE threadCategoryLink (
 CREATE TABLE threadImages (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
     threadId CHAR(36) NOT NULL,
-    imageUrl VARCHAR(255) NOT NULL,
+    imageUrl TEXT NOT NULL,
     FOREIGN KEY (threadId) REFERENCES threads(id) ON DELETE CASCADE,
     INDEX idxThread (threadId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

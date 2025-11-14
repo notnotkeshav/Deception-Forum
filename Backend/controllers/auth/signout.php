@@ -5,44 +5,50 @@ use Backend\Core\App;
 $cache = App::container()->resolve('Core\Cache');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-   $token = getBearerToken();
+   // Check if user is authenticated via session
+   if (isset($_SESSION['token']) && isset($_SESSION['userId'])) {
 
-   if (isset($token)) {
-      if (isset($_SESSION['token']) && $_SESSION['token'] === $token) {
+      $userId = $_SESSION['userId'];
+      $loginUrl = $_SESSION['user']['loginUrl'] ?? null;
 
-         $userId = $_SESSION['userId'] ?? null;
-         $loginUrl = $_SESSION['user']['loginUrl'] ?? null;
-
-         if ($loginUrl) {
-            $cache->delete("loginurl:$loginUrl");
-            $cache->delete("user:loginurl:$loginUrl");
-         }
-
-         // Destroy session tokens
-         unset($_SESSION['token']);
-         unset($_SESSION['token_expiration']);
-         unset($_SESSION['userId']);
-         unset($_SESSION['user']);
-         unset($_SESSION['moderator']);
-         unset($_SESSION);
-
-         // 200 OK: Successfully logged out
-         http_response_code(200);
-         echo json_encode(['message' => 'Successfully logged out.']);
-      } else {
-         // 401 Unauthorized: Invalid token or session expired
-         http_response_code(401);
-         echo json_encode(['error' => 'Invalid token or session expired.']);
+      // Clear cache entries
+      if ($loginUrl) {
+         $cache->delete("loginurl:$loginUrl");
+         $cache->delete("user:loginurl:$loginUrl");
       }
+
+      // Clear all session variables
+      $_SESSION = array();
+
+      // Delete the session cookie
+      if (ini_get("session.use_cookies")) {
+         $params = session_get_cookie_params();
+         setcookie(
+            session_name(),
+            '',
+            time() - 42000,
+            $params["path"],
+            $params["domain"],
+            $params["secure"],
+            $params["httponly"]
+         );
+      }
+
+      // Destroy the session
+      session_destroy();
+
+      // 200 OK: Successfully logged out
+      http_response_code(200);
+      echo json_encode(['success' => true, 'message' => 'Successfully logged out.']);
    } else {
-      // 400 Bad Request: Authorization token missing
-      http_response_code(400);
-      echo json_encode(['error' => 'Authorization token missing.']);
+      // 401 Unauthorized: No valid session
+      http_response_code(401);
+      echo json_encode(['success' => false, 'error' => 'Not authenticated or session expired.']);
    }
    exit();
 } else {
    // 405 Method Not Allowed: Invalid request method
    http_response_code(405);
-   echo json_encode(['error' => 'Invalid request method.']);
+   echo json_encode(['success' => false, 'error' => 'Invalid request method.']);
    exit();
 }

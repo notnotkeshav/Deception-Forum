@@ -22,7 +22,7 @@
 
     .container {
         width: 90%;
-        max-width: 1200px;
+        max-width: 1390px;
         margin: 0 auto;
         display: flex;
         justify-content: space-between;
@@ -137,11 +137,13 @@
 
         <ul class="navbar-nav">
             <li class="nav-item">
-                <a class="nav-link active" href="/threads">Threads</a>
+                <a class="nav-link" href="/threads">Threads</a>
             </li>
-            <li class="nav-item">
-                <a class="nav-link" href="/generate_invite_code">Invites</a>
-            </li>
+            <?php if ($_SESSION['user']['accessLevel'] >= 5) : ?>
+                <li class="nav-item">
+                    <a class="nav-link" href="/generate_invite_code">Invites</a>
+                </li>
+            <?php endif; ?>
             <li class="nav-item">
                 <a class="nav-link" href="/notifications">
                     Notifications
@@ -168,10 +170,42 @@
     // Logout functionality
     document.getElementById('logout').addEventListener('click', function(e) {
         e.preventDefault();
+
         if (confirm('Terminate session?')) {
-            window.location.href = '/logout';
+            fetch('/signout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'same-origin',
+                    redirect: 'follow' // Follow redirects automatically (default)
+                })
+                .then(response => {
+                    // Check if response was redirected
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                        return;
+                    }
+
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && data.success) {
+                        console.log(data.message);
+                        sessionStorage.clear();
+                        localStorage.clear();
+                        window.location.href = '/signin';
+                    } else if (data && data.error) {
+                        alert('Logout failed: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error during logout:', error);
+                    alert('An error occurred during logout. Please try again.');
+                });
         }
     });
+
 
     // Simulate active link based on current page
     const currentPage = window.location.pathname;

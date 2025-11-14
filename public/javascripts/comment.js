@@ -147,10 +147,10 @@ $(document).ready(function () {
       let commentHTML = `
          <li id="comment-${comment.id}" style="margin-left: ${level * 20}px;" class="list-group-item">
              <p><strong>User ID ${comment.userId} Commented at:</strong> ${comment.createdAt}</p>
-             <div class="mb-2">${sanitizedContent}</div>
+             <div class="mb-2 comment-content-${comment.id}">${sanitizedContent}</div>
              <p>Upvotes: <span id="upvotes-${comment.id}">${comment.upvoteCount}</span>, Downvotes: <span id="downvotes-${comment.id}">${comment.downvoteCount}</span></p>
              ${isAuthorized && !locked ? `
-               <button class="btn btn-warning btn-sm edit-btn" data-comment-id="${comment.id}" data-comment="${sanitizedContent}">Edit</button>
+               <button class="btn btn-warning btn-sm edit-btn" data-comment-id="${comment.id}">Edit</button>
                <button class="btn btn-danger btn-sm delete-btn" data-comment-id="${comment.id}">Delete</button>
             ` : ''}
             ${!locked ? `
@@ -285,29 +285,50 @@ $(document).ready(function () {
       });
    });
 
+   $('#cancel-reply').on('click', function () {
+      $('#parentCommentId').val('');
+      createReplyQuill.root.innerHTML = '';
+   });
+
    $(document).on('click', '.reply-btn', function () {
       const commentId = $(this).data('comment-id');
       $('#parentCommentId').val(commentId);
       createReplyQuill.root.innerHTML = '';
-      $('html, body').animate({
-         scrollTop: $('#create-reply-form').offset().top - 100,
-      }, 500);
+
+      const replyForm = $('#create-reply-form');
+      if (replyForm.length && replyForm.is(':visible')) {
+         $('html, body').animate({
+            scrollTop: replyForm.offset().top - 100,
+         }, 500);
+      }
 
       createReplyQuill.focus();
    });
 
+   // FIXED: Changed selector from '.comment-action-btn.edit' to '.edit-btn'
+   // FIXED: Get content from DOM instead of data attribute to avoid HTML encoding issues
    $(document).on('click', '.edit-btn', function () {
       const commentId = $(this).data('comment-id');
-      const comment = $(this).data('comment');
+
+      // Get the content directly from the DOM instead of data attribute
+      const commentContent = $(`.comment-content-${commentId}`).html();
+
 
       $('#editCommentId').val(commentId);
-      $('#edit-comment-section').show();
+      $('#edit-comment-form').show();
       $('#create-reply-form').hide();
-      $('html, body').animate({
-         scrollTop: $('#edit-comment-section').offset().top - 100,
-      }, 500);
 
-      editCommentQuill.root.innerHTML = comment;
+
+      // Now safely get offset after element is visible
+      const editForm = $('#edit-comment-form');
+      if (editForm.length && editForm.is(':visible')) {
+         $('html, body').animate({
+            scrollTop: editForm.offset().top - 100
+         }, 350);
+      }
+
+
+      editCommentQuill.root.innerHTML = commentContent;
       editCommentQuill.focus();
    });
 
@@ -331,7 +352,7 @@ $(document).ready(function () {
          success: (response) => {
             if (response.success) {
                loadComments(true); // Force refresh after edit
-               $('#edit-comment-section').hide();
+               $('#edit-comment-form').hide(); // FIXED: Use correct ID
                $('#create-reply-form').show();
             } else {
                console.error('Failed to edit comment:', response.error);
@@ -344,7 +365,7 @@ $(document).ready(function () {
    });
 
    $('#cancel-edit').click(function () {
-      $('#edit-comment-section').hide();
+      $('#edit-comment-form').hide();
       $('#create-reply-form').show();
       $('#editCommentId').val('');
       editCommentQuill.root.innerHTML = '';

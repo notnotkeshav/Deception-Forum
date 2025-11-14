@@ -98,16 +98,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         // Get user's TOTP secret from cache first
         $userCacheKey = "user_totp:" . $userIdHash;
         $cachedUser = $cache->get($userCacheKey);
-        
+
         if (!$cachedUser || $cachedUser['expiration'] < $currentTime) {
             // Cache miss - fetch from database
-            $statement = $db->query('SELECT id, username, email, name, totp_secret, totp_enabled, isDeleted FROM users WHERE id = ? AND isDeleted = 0', [$userId]);
+            $statement = $db->query('SELECT * FROM users WHERE id = ? AND isDeleted = 0', [$userId]);
             $user = $db->getOne($statement);
-            
+
             if (!$user) {
                 throw new Exception('User account not found', 404);
             }
-            
+
             // Cache user data
             $cache->set($userCacheKey, $user, 1800); // 30 minutes
         } else {
@@ -194,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             // Check moderator status with caching
             $moderatorKey = "moderator:" . $userIdHash;
             $moderatorData = $cache->get($moderatorKey);
-            
+
             if (!$moderatorData || $moderatorData['expiration'] < $currentTime) {
                 $stmt = $db->query("SELECT id, role FROM moderators WHERE userId = :userId", [":userId" => $userId]);
                 $response = $db->getOne($stmt);
@@ -203,7 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             } else {
                 $isModerator = $moderatorData['value'];
             }
-            
+
             $_SESSION['moderator'] = $isModerator;
 
             $db->commit();
@@ -225,28 +225,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 // Lock for 1 day after 3 failed attempts
                 $lockoutDuration = 86400; // 1 day
                 $cache->set($lockoutKey, $currentTime + $lockoutDuration, $lockoutDuration);
-                
+
                 // Log security event
                 error_log("TOTP account locked for user ID: " . $user['id'] . " after 3 failed attempts from IP: " . $ipAddress);
-                
+
                 throw new Exception("Account locked for 24 hours due to repeated TOTP failures.", 429);
             }
-            
+
             // Log failed attempt
             error_log("Failed TOTP attempt #$failedAttempts for user: " . $user['username'] . " from IP: " . $ipAddress);
-            
+
             $db->rollback();
             throw new Exception("Invalid verification code. Attempt: $failedAttempts", 401);
         }
     } catch (Exception $e) {
-        $db->rollBack();
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
         error_log("TOTP verification error: " . $e->getMessage() . " | IP: " . $ipAddress . " | User Agent: " . $userAgent);
-        
+
         $httpCode = $e->getCode();
         if ($httpCode < 100 || $httpCode >= 600) {
             $httpCode = 500;
         }
-        
+
         sendJsonResponse(false, $e->getMessage(), [], $httpCode);
     }
 }

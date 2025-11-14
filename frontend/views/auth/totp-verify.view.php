@@ -120,7 +120,9 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .message {
@@ -140,6 +142,19 @@
             background: rgba(0, 255, 0, 0.1);
             border: 1px solid #0f0;
             color: #0f0;
+        }
+
+        .btn-link {
+            background: none;
+            border: none;
+            color: #007bff;
+            cursor: pointer;
+            text-decoration: underline;
+            padding: 10px;
+        }
+
+        .btn-link:hover {
+            color: #0056b3;
         }
     </style>
 </head>
@@ -163,6 +178,11 @@
                 <input type="text" maxlength="1" pattern="\d" required>
                 <input type="text" maxlength="1" pattern="\d" required>
                 <input type="text" maxlength="1" pattern="\d" required>
+            </div>
+            <div class="form-group">
+                <button type="button" id="useBackupCode" class="btn-link">
+                    Lost access? Use a backup code
+                </button>
             </div>
 
             <button type="submit" id="verifyBtn" class="btn">VERIFY</button>
@@ -245,7 +265,7 @@
 
                             // Show success and redirect
                             showSuccess('Verification successful! Redirecting...');
-                            
+
                             // Determine redirect URL
                             let redirectUrl = '/threads'; // Default
                             const urlParams = new URLSearchParams(window.location.search);
@@ -289,6 +309,31 @@
                 successBlock.style.display = 'block';
             }
         });
+
+        document.getElementById('useBackupCode').addEventListener('click', function() {
+            const codeInput = document.getElementById('code');
+            const instructionText = document.querySelector('label[for="code"]');
+
+            if (this.dataset.mode === 'backup') {
+                // Switch back to TOTP mode
+                this.textContent = 'Lost access? Use a backup code';
+                this.dataset.mode = 'totp';
+                instructionText.textContent = 'Enter the 6-digit code from your authenticator app:';
+                codeInput.placeholder = '000000';
+                codeInput.maxLength = 6;
+            } else {
+                // Switch to backup code mode
+                this.textContent = 'Use authenticator app instead';
+                this.dataset.mode = 'backup';
+                instructionText.textContent = 'Enter one of your backup codes:';
+                codeInput.placeholder = 'XXXX-XXXX-XXXX-XXXX';
+                codeInput.maxLength = 19;
+            }
+
+            codeInput.value = '';
+            codeInput.focus();
+        });
     </script>
 </body>
+
 </html>

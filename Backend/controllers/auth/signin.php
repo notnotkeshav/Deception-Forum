@@ -93,7 +93,10 @@ if ($method === 'GET') {
       $user = null;
       if (!$loginCode || $loginCode['expiration'] < $currentTime) {
          // Cache miss or expired - fetch from database
-         $stmt = $db->query("SELECT id, username, email, passwordHash, totp_enabled, totp_secret, name, loginUrl, isDeleted FROM users WHERE loginurl = :code AND isDeleted = 0", [":code" => $params['code']]);
+         $stmt = $db->query(
+            "SELECT * FROM users WHERE loginurl = :code AND isDeleted = 0",
+            [":code" => $params['code']]
+         );
          $user = $db->getOne($stmt);
 
          if (!$user) {

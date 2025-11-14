@@ -14,14 +14,14 @@ class TOTP
     {
         $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
         $secret = '';
-        
+
         for ($i = 0; $i < $length; $i++) {
             $secret .= $chars[random_int(0, strlen($chars) - 1)];
         }
-        
+
         return $secret;
     }
-    
+
     /**
      * Generate QR code URL for TOTP setup
      * 
@@ -34,10 +34,10 @@ class TOTP
     {
         $encodedUsername = urlencode($username);
         $encodedIssuer = urlencode($issuer);
-        
+
         return "otpauth://totp/{$encodedIssuer}:{$encodedUsername}?secret={$secret}&issuer={$encodedIssuer}";
     }
-    
+
     /**
      * Verify a TOTP code
      * 
@@ -50,20 +50,20 @@ class TOTP
     {
         $currentTime = time();
         $timeStep = 30; // TOTP time step in seconds
-        
+
         // Check current time slot and adjacent time slots
         for ($i = -$window; $i <= $window; $i++) {
             $testTime = $currentTime + ($i * $timeStep);
             $testCode = self::generateCode($secret, $testTime);
-            
+
             if (hash_equals($testCode, $code)) {
                 return true;
             }
         }
-        
+
         return false;
     }
-    
+
     /**
      * Generate TOTP code for a given time
      * 
@@ -76,19 +76,19 @@ class TOTP
         if ($time === null) {
             $time = time();
         }
-        
+
         $timeStep = 30;
         $counter = floor($time / $timeStep);
-        
+
         // Convert secret from base32 to binary
         $binarySecret = self::base32Decode($secret);
-        
+
         // Pack counter as 64-bit big-endian
         $counterBytes = pack('J', $counter);
-        
+
         // Generate HMAC-SHA1 hash
         $hash = hash_hmac('sha1', $counterBytes, $binarySecret, true);
-        
+
         // Dynamic truncation
         $offset = ord($hash[19]) & 0x0F;
         $truncatedHash = (
@@ -97,13 +97,13 @@ class TOTP
             ((ord($hash[$offset + 2]) & 0xFF) << 8) |
             (ord($hash[$offset + 3]) & 0xFF)
         );
-        
+
         // Generate 6-digit code
         $code = $truncatedHash % 1000000;
-        
+
         return str_pad($code, 6, '0', STR_PAD_LEFT);
     }
-    
+
     /**
      * Decode base32 string to binary
      * 
@@ -114,32 +114,32 @@ class TOTP
     {
         $base32 = strtoupper($base32);
         $base32 = str_replace(['0', '1'], ['O', 'I'], $base32); // Handle common mistakes
-        
+
         $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
         $output = '';
         $buffer = 0;
         $bitsLeft = 0;
-        
+
         for ($i = 0; $i < strlen($base32); $i++) {
             $char = $base32[$i];
             $val = strpos($alphabet, $char);
-            
+
             if ($val === false) {
                 continue; // Skip invalid characters
             }
-            
+
             $buffer = ($buffer << 5) | $val;
             $bitsLeft += 5;
-            
+
             if ($bitsLeft >= 8) {
                 $output .= chr(($buffer >> ($bitsLeft - 8)) & 0xFF);
                 $bitsLeft -= 8;
             }
         }
-        
+
         return $output;
     }
-    
+
     /**
      * Get current TOTP code for testing purposes
      * 
@@ -150,7 +150,7 @@ class TOTP
     {
         return self::generateCode($secret);
     }
-    
+
     /**
      * Get time remaining until next code generation
      * 
@@ -160,7 +160,7 @@ class TOTP
     {
         return 30 - (time() % 30);
     }
-    
+
     /**
      * Validate secret format
      * 
@@ -172,13 +172,132 @@ class TOTP
         // Check if secret is valid base32
         $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
         $secret = strtoupper($secret);
-        
+
         for ($i = 0; $i < strlen($secret); $i++) {
             if (strpos($alphabet, $secret[$i]) === false) {
                 return false;
             }
         }
-        
+
         return strlen($secret) >= 16; // Minimum recommended length
+    }
+
+    /**
+     * Generate backup recovery codes
+     * 
+     * @param int $count Number of codes to generate (default 10)
+     * @param int $length Length of each code segment (default 4)
+     * @return array Array of backup codes
+     */
+    public static function generateBackupCodes($count = 10, $length = 4)
+    {
+        $codes = [];
+        for ($i = 0; $i < $count; $i++) {
+            $segments = [];
+            for ($j = 0; $j < 4; $j++) {
+                $segment = '';
+                for ($k = 0; $k < $length; $k++) {
+                    $segment .= strtoupper(dechex(random_int(0, 15)));
+                }
+                $segments[] = $segment;
+            }
+            $codes[] = implode('-', $segments);
+        }
+        return $codes;
+    }
+
+    /**
+     * Hash backup codes for storage
+     * 
+     * @param array $codes Array of plain backup codes
+     * @return string JSON encoded array of hashed codes
+     */
+    public static function hashBackupCodes(array $codes)
+    {
+        $hashed = array_map(function ($code) {
+            return [
+                'hash' => password_hash($code, PASSWORD_ARGON2ID),
+                'used' => false
+            ];
+        }, $codes);
+        return json_encode($hashed);
+    }
+
+    /**
+     * Verify a backup code
+     * 
+     * @param string $inputCode The code provided by user
+     * @param string $storedCodesJson JSON string of hashed codes from database
+     * @return bool|int Returns the index of matched code, or false if no match
+     */
+    public static function verifyBackupCode($inputCode, $storedCodesJson)
+    {
+        if (empty($storedCodesJson)) {
+            return false;
+        }
+
+        $storedCodes = json_decode($storedCodesJson, true);
+        if (!is_array($storedCodes)) {
+            return false;
+        }
+
+        // Normalize input (remove spaces, convert to uppercase)
+        $inputCode = strtoupper(str_replace([' ', '-'], '', $inputCode));
+
+        foreach ($storedCodes as $index => $codeData) {
+            if ($codeData['used']) {
+                continue; // Skip already used codes
+            }
+
+            // Extract just the hash for comparison
+            $hash = $codeData['hash'];
+
+            // Reconstruct code format for verification (remove dashes from stored format)
+            $normalizedStored = str_replace('-', '', $inputCode);
+
+            if (password_verify($inputCode, $hash)) {
+                return $index; // Return the index of the matched code
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Mark a backup code as used
+     * 
+     * @param string $storedCodesJson JSON string of codes
+     * @param int $index Index of code to mark as used
+     * @return string Updated JSON string
+     */
+    public static function markBackupCodeUsed($storedCodesJson, $index)
+    {
+        $codes = json_decode($storedCodesJson, true);
+        if (isset($codes[$index])) {
+            $codes[$index]['used'] = true;
+        }
+        return json_encode($codes);
+    }
+
+    /**
+     * Get count of remaining backup codes
+     * 
+     * @param string $storedCodesJson JSON string of codes
+     * @return int Number of unused codes
+     */
+    public static function getRemainingBackupCodesCount($storedCodesJson)
+    {
+        if (empty($storedCodesJson)) {
+            return 0;
+        }
+
+        $codes = json_decode($storedCodesJson, true);
+        if (!is_array($codes)) {
+            return 0;
+        }
+
+        return count(array_filter($codes, function ($code) {
+            return !$code['used'];
+        }));
     }
 }

@@ -223,10 +223,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
                     try {
                         // Store the secret in database
-                        $updateStatement = $db->query('UPDATE users SET totp_secret = ?, totp_enabled = 1 WHERE id = ?', [
-                            $secret,
-                            $userId
-                        ]);
+                        $backupCodes = TOTP::generateBackupCodes(10);
+                        $hashedBackupCodes = TOTP::hashBackupCodes($backupCodes);
+
+                        // Store the secret and backup codes in database
+                        $updateStatement = $db->query(
+                            'UPDATE users SET totp_secret = ?, totp_enabled = 1, totp_backup_codes = ? WHERE id = ?',
+                            [$secret, $hashedBackupCodes, $userId]
+                        );
 
                         // Log the security event
                         error_log("TOTP enabled for user ID: $userId from IP: $ipAddress");
@@ -236,8 +240,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                         // Update cache
                         $user['totp_enabled'] = true;
                         $user['totp_secret'] = $secret;
+                        $user['totp_backup_codes'] = $hashedBackupCodes;
                         $cache->set($userCacheKey, $user, 1800);
-                        $cache->delete($ipRateLimitKey); // Clear IP rate limit on success
+                        $cache->delete($ipRateLimitKey);
 
                         // Clear setup session
                         unset($_SESSION['totp_setup']);
@@ -247,14 +252,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                         if (!empty($_SESSION['partial_auth'])) {
                             sendJsonResponse(true, 'TOTP enabled successfully. Please verify to continue.', [
                                 'redirect' => '/verify-totp',
-                                'totp_required' => true
+                                'totp_required' => true,
+                                'backup_codes' => $backupCodes // Send plain codes only once
                             ]);
                         } else {
                             // Update session user data if already logged in
                             if (!empty($_SESSION['user'])) {
                                 $_SESSION['user']['totp_enabled'] = true;
                             }
-                            sendJsonResponse(true, 'TOTP enabled successfully');
+
+                            sendJsonResponse(true, 'TOTP enabled successfully', [
+                                'backup_codes' => $backupCodes // Send plain codes only once
+                            ]);
                         }
                     } catch (Exception $e) {
                         $db->rollback();
@@ -330,7 +339,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 throw new Exception('Invalid action', 400);
         }
     } catch (Exception $e) {
-       error_log("TOTP setup error: " . $e->getMessage() . " | IP: " . $ipAddress . " | User Agent: " . $userAgent);
+        error_log("TOTP setup error: " . $e->getMessage() . " | IP: " . $ipAddress . " | User Agent: " . $userAgent);
 
         $httpCode = $e->getCode();
         // Fix: Ensure httpCode is always a valid integer
