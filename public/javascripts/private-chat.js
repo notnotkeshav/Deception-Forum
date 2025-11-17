@@ -1,7 +1,9 @@
 $(document).ready(() => {
    const chatId = $('#chatId').val();
-
+   const API_BASE_URL = '';
+   let token = sessionStorage.getItem('token');
    let oldestMessageTime = null;
+   let newestMessageTime = null;
    let isLoading = false;
    let initialLoad = true;
 
@@ -9,88 +11,119 @@ $(document).ready(() => {
       if (isLoading) return;
       isLoading = true;
 
-      let url = `${API_BASE_URL}/private-chat/messages?id=${chatId}&_=${new Date().getTime()}`;
-      
-      // If appending messages (loading older ones), add the oldestTimestamp parameter
+      let url = `${API_BASE_URL}/private-chat/messages?chatId=${chatId}&_=${new Date().getTime()}`;
       if (append && oldestMessageTime) {
          url += `&oldestTimestamp=${encodeURIComponent(oldestMessageTime)}`;
       }
-      
-      // For initial load, we'll update newestMessageTime after loading
 
       $.ajax({
-         url: url,
+         url,
          method: 'GET',
          dataType: 'json',
          headers: { 'Authorization': `Bearer ${token}` },
          success: (response) => {
             if (response.success) {
-               renderMessages(response.details.messages, append);
-               
-               // If this is the initial load, scroll to the bottom
+               const sortedMessages = response.details.messages.sort((a, b) => 
+                  new Date(a.sentAt) - new Date(b.sentAt)
+               );
+               renderMessages(sortedMessages, append);
                if (initialLoad) {
                   scrollToBottom();
                   initialLoad = false;
                }
-            } else {
-               console.error('Error fetching messages:', response.details);
             }
             isLoading = false;
          },
          error: (xhr) => {
-            console.error(`AJAX Error: ${xhr.status} ${xhr.statusText}`);
+            console.error(`Error loading messages: ${xhr.status} ${xhr.statusText}`);
             isLoading = false;
          }
       });
    };
 
+   const formatDate = (dateString) => {
+      const date = new Date(dateString);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      const isToday = date.toDateString() === today.toDateString();
+      const isYesterday = date.toDateString() === yesterday.toDateString();
+
+      if (isToday) return 'Today';
+      if (isYesterday) return 'Yesterday';
+      
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+   };
+
    const renderMessages = (messages, append = false) => {
       const messageList = $('#message-list');
-      
-      // If not appending, clear the list
-      if (!append) {
-         messageList.empty();
-      }
-      
-      // If no messages returned, return early
+      if (!append) messageList.empty();
       if (messages.length === 0) return;
-      
-      // Update the oldestMessageTime with the timestamp of the oldest message
-      if (messages.length > 0 && append) {
+
+      if (append) oldestMessageTime = messages[0].sentAt;
+      else {
          oldestMessageTime = messages[0].sentAt;
-      } else if (messages.length > 0 && !append) {
-         // For initial load, set the oldestMessageTime to the first message in the list
-         oldestMessageTime = messages[0].sentAt;
+         newestMessageTime = messages[messages.length - 1].sentAt;
       }
 
-      // Create a document fragment to improve performance
       const fragment = document.createDocumentFragment();
+      let lastDate = null;
 
-      messages.forEach((msg) => {
+      messages.forEach(msg => {
+         const msgDate = new Date(msg.sentAt).toDateString();
+         
+         // Add date separator if date changed
+         if (msgDate !== lastDate) {
+            const dateSeparator = document.createElement('li');
+            dateSeparator.className = 'date-separator';
+            dateSeparator.innerHTML = `<span>${formatDate(msg.sentAt)}</span>`;
+            fragment.appendChild(dateSeparator);
+            lastDate = msgDate;
+         }
+
          const isOwner = msg.userId === sessionStorage.getItem('userId');
-         const messageClass = isOwner ? 'text-end' : 'text-start';
-         const messageContent = msg.isDeleted ? '<em>This message was deleted.</em>' : msg.message;
-         const controls = isOwner && !msg.isDeleted ? `
-            <button class="btn btn-sm btn-warning edit-message" data-id="${msg.id}" data-message="${msg.message}">Edit</button>
-            <button class="btn btn-sm btn-danger delete-message" data-id="${msg.id}">Delete</button>
-         ` : '';
-
+         const messageClass = isOwner ? 'msg-owner' : 'msg-other';
+         const messageContent = msg.isDeleted 
+            ? '<em style="color:#555;font-size:0.85rem;">Message deleted</em>' 
+            : msg.message;
+         
          const li = document.createElement('li');
-         li.className = `mb-2 ${messageClass}`;
+         li.className = `msg-item ${messageClass}`;
          li.setAttribute('data-id', msg.id);
          li.innerHTML = `
-            <span class="badge bg-secondary">${messageContent}</span>
-            <small class="text-muted d-block">${msg.sentAt}</small>
-            ${controls}
+            <div class="msg-container">
+               ${!msg.isDeleted ? `
+                  <div class="msg-hover-actions">
+                     <button class="hover-icon vote-up" data-id="${msg.id}" title="Upvote"><i class="fa fa-thumbs-up"></i></button>
+                     <button class="hover-icon vote-down" data-id="${msg.id}" title="Downvote"><i class="fa fa-thumbs-down"></i></button>
+                     <button class="hover-icon copy-msg" data-message="${msg.message}" title="Copy"><i class="fa fa-copy"></i></button>
+                     ${isOwner ? `
+                        <button class="hover-icon edit-msg" data-id="${msg.id}" data-message="${msg.message}" title="Edit"><i class="fa fa-edit"></i></button>
+                        <button class="hover-icon delete-msg" data-id="${msg.id}" title="Delete"><i class="fa fa-trash"></i></button>
+                     ` : ''}
+                  </div>
+               ` : ''}
+               <div class="msg-bubble">
+                  <div class="msg-header">
+                     <span class="msg-sender">${msg.username}</span>
+                     <span class="msg-time">${new Date(msg.sentAt).toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'})}</span>
+                  </div>
+                  <div class="msg-text">${messageContent}</div>
+                  ${!msg.isDeleted ? `
+                     <div class="msg-vote-count" data-upvotes="${msg.upvoteCount || 0}" data-downvotes="${msg.downvoteCount || 0}">
+                        <i class="fa fa-thumbs-up"></i> ${msg.upvoteCount || 0} 
+                        <i class="fa fa-thumbs-down"></i> ${msg.downvoteCount || 0}
+                     </div>
+                  ` : ''}
+               </div>
+            </div>
          `;
          fragment.appendChild(li);
       });
 
-      // If appending (loading older messages), add to the beginning
-      if (append) {
-         messageList.prepend(fragment);
-      } else {
-         // Otherwise, add to the end (newer messages)
+      if (append) messageList.prepend(fragment);
+      else {
          messageList.append(fragment);
          scrollToBottom();
       }
@@ -101,182 +134,125 @@ $(document).ready(() => {
       chatWindow.scrollTop(chatWindow[0].scrollHeight);
    };
 
-   // Scroll event handler for loading older messages
-   $('#chat-window').on('scroll', function() {
+   $('#chat-window').on('scroll', function () {
       if ($(this).scrollTop() === 0 && !isLoading) {
-         // User has scrolled to the top, load more messages
          fetchMessages(true);
       }
    });
 
    $('#sendMessageForm').on('submit', function (event) {
       event.preventDefault();
-      const messageInput = $('#messageInput');
-      const message = messageInput.val().trim();
+      const message = $('#messageInput').val().trim();
       if (!message) return;
 
       $.ajax({
          url: `${API_BASE_URL}/private-chat/message`,
          method: 'POST',
-         data: { chatId: chatId, message: message },
+         data: { chatId, message },
          dataType: 'json',
          headers: { 'Authorization': `Bearer ${token}` },
          success: (response) => {
             if (response.success) {
-               messageInput.val('');
-               // Only get latest messages, don't append
+               $('#messageInput').val('');
                fetchMessages(false);
             }
          },
-         error: (xhr) => {
-            console.error(`Message send error: ${xhr.responseText}`);
-         }
+         error: (xhr) => console.error(`Send error: ${xhr.responseText}`)
       });
    });
 
-   $(document).on('click', '.edit-message', function () {
+   $(document).on('click', '.copy-msg', function () {
+      const message = $(this).data('message');
+      navigator.clipboard.writeText(message).then(() => {
+         const icon = $(this).find('i');
+         icon.removeClass('fa-copy').addClass('fa-check');
+         setTimeout(() => icon.removeClass('fa-check').addClass('fa-copy'), 1000);
+      });
+   });
+
+   $(document).on('click', '.edit-msg', function () {
       const messageId = $(this).data('id');
       const currentMessage = $(this).data('message');
-      const newMessage = prompt('Edit your message:', currentMessage);
-      if (!newMessage || newMessage.trim() === '') return;
+      const newMessage = prompt('Edit message:', currentMessage);
+      if (!newMessage?.trim()) return;
 
       $.ajax({
          url: `${API_BASE_URL}/private-chat/message`,
          method: 'PUT',
-         data: { messageId: messageId, message: newMessage },
+         data: { messageId, message: newMessage },
          dataType: 'json',
          headers: { 'Authorization': `Bearer ${token}` },
-         success: (response) => {
-            if (response.success) {
-               fetchMessages(false);
-            }
-         },
-         error: (xhr) => {
-            console.error(`Edit error: ${xhr.responseText}`);
-         }
+         success: () => fetchMessages(false),
+         error: (xhr) => console.error(`Edit error: ${xhr.responseText}`)
       });
    });
 
-   $(document).on('click', '.delete-message', function () {
+   $(document).on('click', '.delete-msg', function () {
       const messageId = $(this).data('id');
-      if (!confirm('Are you sure you want to delete this message?')) return;
+      if (!confirm('Delete this message?')) return;
 
       $.ajax({
          url: `${API_BASE_URL}/private-chat/message`,
          method: 'DELETE',
-         data: { messageId: messageId },
+         data: { messageId },
          dataType: 'json',
          headers: { 'Authorization': `Bearer ${token}` },
+         success: () => fetchMessages(false),
+         error: (xhr) => console.error(`Delete error: ${xhr.responseText}`)
+      });
+   });
+
+   $(document).on('click', '.vote-up, .vote-down', function () {
+      const messageId = $(this).data('id');
+      const voteType = $(this).hasClass('vote-up') ? 'upvote' : 'downvote';
+
+      $.ajax({
+         url: `${API_BASE_URL}/private-chat/message/vote`,
+         method: 'PUT',
+         dataType: 'json',
+         data: {
+            messageId: messageId,
+            voteType: voteType,
+            action: 'vote',
+            userId: sessionStorage.getItem('userId')
+         },
          success: (response) => {
             if (response.success) {
-               fetchMessages(false);
+               const msgBubble = $(this).closest('.msg-container');
+               const voteCount = msgBubble.find('.msg-vote-count');
+               voteCount.attr('data-upvotes', response.details.updatedUpvotes);
+               voteCount.attr('data-downvotes', response.details.updatedDownvotes);
+               voteCount.html(`
+                  <i class="fa fa-thumbs-up"></i> ${response.details.updatedUpvotes} 
+                  <i class="fa fa-thumbs-down"></i> ${response.details.updatedDownvotes}
+               `);
             }
-         },
-         error: (xhr) => {
-            console.error(`Delete error: ${xhr.responseText}`);
          }
       });
    });
 
-   // Initial fetch
-   fetchMessages();
-   
-   // Store the newest message timestamp for polling
-   let newestMessageTime = null;
-   
-   // Smart polling function to only fetch new messages without disrupting scroll
    const pollNewMessages = () => {
-      if (isLoading) return;
-      
-      // Don't refresh if user is scrolled up viewing older messages
       const chatWindow = $('#chat-window');
       const isAtBottom = chatWindow.scrollTop() + chatWindow.innerHeight() >= chatWindow[0].scrollHeight - 50;
-      
-      // Only fetch new messages
+
       $.ajax({
-         url: `${API_BASE_URL}/private-chat/messages/new?id=${chatId}&newestTimestamp=${encodeURIComponent(newestMessageTime || '')}`,
+         url: `${API_BASE_URL}/private-chat/messages/new?chatId=${chatId}&newestTimestamp=${encodeURIComponent(newestMessageTime || '')}`,
          method: 'GET',
          dataType: 'json',
          headers: { 'Authorization': `Bearer ${token}` },
          success: (response) => {
-            if (response.success && response.details.messages && response.details.messages.length > 0) {
-               // Sort messages by sentAt timestamp
-               const newMessages = response.details.messages.sort((a, b) => new Date(a.sentAt) - new Date(b.sentAt));
-               
-               // Update the newest timestamp
-               if (newMessages.length > 0) {
-                  newestMessageTime = newMessages[newMessages.length - 1].sentAt;
-               }
-               
-               // Append the new messages
-               appendNewMessages(newMessages);
-               
-               // Only auto-scroll if the user was already at the bottom
-               if (isAtBottom) {
-                  scrollToBottom();
-               } else {
-                  // Show a "new messages" indicator if user is scrolled up
-                  showNewMessagesIndicator(newMessages.length);
-               }
+            if (response.success && response.details.messages?.length) {
+               const newMessages = response.details.messages.sort((a, b) => 
+                  new Date(a.sentAt) - new Date(b.sentAt)
+               );
+               newestMessageTime = newMessages[newMessages.length - 1].sentAt;
+               renderMessages(newMessages, false);
+               if (isAtBottom) scrollToBottom();
             }
-         },
-         error: (xhr) => {
-            console.error(`Polling Error: ${xhr.status} ${xhr.statusText}`);
          }
       });
    };
-   
-   // Function to append only new messages
-   const appendNewMessages = (messages) => {
-      const messageList = $('#message-list');
-      const fragment = document.createDocumentFragment();
-      
-      messages.forEach((msg) => {
-         const isOwner = msg.userId === sessionStorage.getItem('userId');
-         const messageClass = isOwner ? 'text-end' : 'text-start';
-         const messageContent = msg.isDeleted ? '<em>This message was deleted.</em>' : msg.message;
-         const controls = isOwner && !msg.isDeleted ? `
-            <button class="btn btn-sm btn-warning edit-message" data-id="${msg.id}" data-message="${msg.message}">Edit</button>
-            <button class="btn btn-sm btn-danger delete-message" data-id="${msg.id}">Delete</button>
-         ` : '';
 
-         const li = document.createElement('li');
-         li.className = `mb-2 ${messageClass}`;
-         li.setAttribute('data-id', msg.id);
-         li.innerHTML = `
-            <span class="badge bg-secondary">${messageContent}</span>
-            <small class="text-muted d-block">${msg.sentAt}</small>
-            ${controls}
-         `;
-         fragment.appendChild(li);
-      });
-      
-      messageList.append(fragment);
-   };
-   
-   // Function to show new messages indicator
-   const showNewMessagesIndicator = (count) => {
-      // Remove existing indicator if any
-      $('#new-messages-indicator').remove();
-      
-      // Create new indicator
-      const indicator = $(`<div id="new-messages-indicator" class="alert alert-info text-center" 
-                          style="position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%); cursor: pointer;">
-                          ${count} new message${count > 1 ? 's' : ''}</div>`);
-      
-      // Add click handler to scroll to bottom
-      indicator.on('click', () => {
-         scrollToBottom();
-         indicator.remove();
-      });
-      
-      // Add to body
-      $('body').append(indicator);
-      
-      // Auto-hide after 5 seconds
-      setTimeout(() => indicator.fadeOut('slow', () => indicator.remove()), 5000);
-   };
-   
-   // Set up polling
+   fetchMessages();
    setInterval(pollNewMessages, 5000);
 });

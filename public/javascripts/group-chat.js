@@ -1,6 +1,7 @@
 $(document).ready(() => {
    const groupId = $('#groupId').val();
-
+   const API_BASE_URL = '';
+   let token = sessionStorage.getItem('token');
    let oldestMessageTime = null;
    let newestMessageTime = null;
    let isLoading = false;
@@ -22,7 +23,10 @@ $(document).ready(() => {
          headers: { 'Authorization': `Bearer ${token}` },
          success: (response) => {
             if (response.success) {
-               renderMessages(response.details.messages, append);
+               const sortedMessages = response.details.messages.sort((a, b) => 
+                  new Date(a.sentAt) - new Date(b.sentAt)
+               );
+               renderMessages(sortedMessages, append);
                if (initialLoad) {
                   scrollToBottom();
                   initialLoad = false;
@@ -37,50 +41,84 @@ $(document).ready(() => {
       });
    };
 
+   const formatDate = (dateString) => {
+      const date = new Date(dateString);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      const isToday = date.toDateString() === today.toDateString();
+      const isYesterday = date.toDateString() === yesterday.toDateString();
+
+      if (isToday) return 'Today';
+      if (isYesterday) return 'Yesterday';
+      
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+   };
+
    const renderMessages = (messages, append = false) => {
       const messageList = $('#message-list');
       if (!append) messageList.empty();
-
       if (messages.length === 0) return;
 
       if (append) oldestMessageTime = messages[0].sentAt;
-      else oldestMessageTime = messages[0].sentAt;
+      else {
+         oldestMessageTime = messages[0].sentAt;
+         newestMessageTime = messages[messages.length - 1].sentAt;
+      }
 
       const fragment = document.createDocumentFragment();
+      let lastDate = null;
 
       messages.forEach(msg => {
+         const msgDate = new Date(msg.sentAt).toDateString();
+         
+         // Add date separator if date changed
+         if (msgDate !== lastDate) {
+            const dateSeparator = document.createElement('li');
+            dateSeparator.className = 'date-separator';
+            dateSeparator.innerHTML = `<span>${formatDate(msg.sentAt)}</span>`;
+            fragment.appendChild(dateSeparator);
+            lastDate = msgDate;
+         }
+
          const isOwner = msg.userId === sessionStorage.getItem('userId');
-         const messageClass = isOwner ? 'text-end' : 'text-start';
-         const messageContent = msg.isDeleted ? '<em>This message was deleted.</em>' : msg.message;
-         const controls = isOwner && !msg.isDeleted ? `
-             <button class="btn btn-sm btn-warning edit-message" data-id="${msg.id}" data-message="${msg.message}">Edit</button>
-             <button class="btn btn-sm btn-danger delete-message" data-id="${msg.id}">Delete</button>
-          ` : '';
-
-         // Vote buttons and counts
-         const upvoteButton = !msg.isDeleted ?`
-            <button class="btn btn-sm btn-success upvote-button" data-message-id="${msg.id}" id="upvote-btn-${msg.id}">
-               👍 ${msg.upvoteCount || 0}
-            </button>
-         `:'';
-         const downvoteButton = !msg.isDeleted ?`
-            <button class="btn btn-sm btn-danger downvote-button" data-message-id="${msg.id}" id="downvote-btn-${msg.id}">
-               👎 ${msg.downvoteCount || 0}
-            </button>
-         `:'';
-
+         const messageClass = isOwner ? 'msg-owner' : 'msg-other';
+         const messageContent = msg.isDeleted 
+            ? '<em style="color:#555;font-size:0.85rem;">Message deleted</em>' 
+            : msg.message;
+         
          const li = document.createElement('li');
-         li.className = `mb-2 ${messageClass}`;
+         li.className = `msg-item ${messageClass}`;
          li.setAttribute('data-id', msg.id);
          li.innerHTML = `
-             <strong>${msg.userId}</strong><br>
-             <span class="badge bg-secondary">${messageContent}</span>
-             <small class="text-muted d-block">${msg.sentAt}</small>
-             ${controls}
-             <div class="message-vote">
-                ${upvoteButton} ${downvoteButton}
-             </div>
-          `;
+            <div class="msg-container">
+               ${!msg.isDeleted ? `
+                  <div class="msg-hover-actions">
+                     <button class="hover-icon copy-msg" data-message="${msg.message}" title="Copy"><i class="fa fa-copy"></i></button>
+                     ${isOwner ? `
+                        <button class="hover-icon edit-msg" data-id="${msg.id}" data-message="${msg.message}" title="Edit"><i class="fa fa-edit"></i></button>
+                        <button class="hover-icon delete-msg" data-id="${msg.id}" title="Delete"><i class="fa fa-trash"></i></button>
+                     ` : ''}
+                     <button class="hover-icon vote-up" data-id="${msg.id}" title="Upvote"><i class="fa fa-thumbs-up"></i></button>
+                     <button class="hover-icon vote-down" data-id="${msg.id}" title="Downvote"><i class="fa fa-thumbs-down"></i></button>
+                  </div>
+               ` : ''}
+               <div class="msg-bubble">
+                  <div class="msg-header">
+                     <span class="msg-sender">${msg.username}</span>
+                     <span class="msg-time">${new Date(msg.sentAt).toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'})}</span>
+                  </div>
+                  <div class="msg-text">${messageContent}</div>
+                  ${!msg.isDeleted ? `
+                     <div class="msg-vote-count" data-upvotes="${msg.upvoteCount || 0}" data-downvotes="${msg.downvoteCount || 0}">
+                        <i class="fa fa-thumbs-up"></i> ${msg.upvoteCount || 0} 
+                        <i class="fa fa-thumbs-down"></i> ${msg.downvoteCount || 0}
+                     </div>
+                  ` : ''}
+               </div>
+            </div>
+         `;
          fragment.appendChild(li);
       });
 
@@ -119,16 +157,23 @@ $(document).ready(() => {
                fetchMessages(false);
             }
          },
-         error: (xhr) => {
-            console.error(`Send error: ${xhr.responseText}`);
-         }
+         error: (xhr) => console.error(`Send error: ${xhr.responseText}`)
       });
    });
 
-   $(document).on('click', '.edit-message', function () {
+   $(document).on('click', '.copy-msg', function () {
+      const message = $(this).data('message');
+      navigator.clipboard.writeText(message).then(() => {
+         const icon = $(this).find('i');
+         icon.removeClass('fa-copy').addClass('fa-check');
+         setTimeout(() => icon.removeClass('fa-check').addClass('fa-copy'), 1000);
+      });
+   });
+
+   $(document).on('click', '.edit-msg', function () {
       const messageId = $(this).data('id');
       const currentMessage = $(this).data('message');
-      const newMessage = prompt('Edit your message:', currentMessage);
+      const newMessage = prompt('Edit message:', currentMessage);
       if (!newMessage?.trim()) return;
 
       $.ajax({
@@ -142,7 +187,7 @@ $(document).ready(() => {
       });
    });
 
-   $(document).on('click', '.delete-message', function () {
+   $(document).on('click', '.delete-msg', function () {
       const messageId = $(this).data('id');
       if (!confirm('Delete this message?')) return;
 
@@ -157,60 +202,34 @@ $(document).ready(() => {
       });
    });
 
-   $(document).on('click', '.upvote-button', function () {
-      const messageId = $(this).data('message-id');
+   $(document).on('click', '.vote-up, .vote-down', function () {
+      const messageId = $(this).data('id');
+      const voteType = $(this).hasClass('vote-up') ? 'upvote' : 'downvote';
+
       $.ajax({
          url: `${API_BASE_URL}/group-chat/message/vote`,
          method: 'PUT',
          dataType: 'json',
          data: {
             messageId: messageId,
-            voteType: 'upvote',
+            voteType: voteType,
             action: 'vote',
             userId: sessionStorage.getItem('userId')
          },
          success: (response) => {
             if (response.success) {
-               updateVoteCount(messageId, response.details);
-            } else {
-               alert('Failed to upvote');
+               const msgBubble = $(this).closest('.msg-container');
+               const voteCount = msgBubble.find('.msg-vote-count');
+               voteCount.attr('data-upvotes', response.details.updatedUpvotes);
+               voteCount.attr('data-downvotes', response.details.updatedDownvotes);
+               voteCount.html(`
+                  <i class="fa fa-thumbs-up"></i> ${response.details.updatedUpvotes} 
+                  <i class="fa fa-thumbs-down"></i> ${response.details.updatedDownvotes}
+               `);
             }
-         },
-         error: () => {
-            alert('Error while voting');
          }
       });
    });
-
-   $(document).on('click', '.downvote-button', function () {
-      const messageId = $(this).data('message-id');
-      $.ajax({
-         url: `${API_BASE_URL}/group-chat/message/vote`,
-         method: 'PUT',
-         dataType: 'json',
-         data: {
-            messageId: messageId,
-            voteType: 'downvote',
-            action: 'vote',
-            userId: sessionStorage.getItem('userId')
-         },
-         success: (response) => {
-            if (response.success) {
-               updateVoteCount(messageId, response.details);
-            } else {
-               alert('Failed to downvote');
-            }
-         },
-         error: () => {
-            alert('Error while voting');
-         }
-      });
-   });
-
-   const updateVoteCount = (messageId, voteCountObj) => {
-      $(`#upvote-btn-${messageId}`).html(`👍 ${voteCountObj.updatedUpvotes}`);
-      $(`#downvote-btn-${messageId}`).html(`👎 ${voteCountObj.updatedDownvotes}`);
-   };
 
    const pollNewMessages = () => {
       const chatWindow = $('#chat-window');
@@ -223,62 +242,15 @@ $(document).ready(() => {
          headers: { 'Authorization': `Bearer ${token}` },
          success: (response) => {
             if (response.success && response.details.messages?.length) {
-               const newMessages = response.details.messages.sort((a, b) => new Date(a.sentAt) - new Date(b.sentAt));
+               const newMessages = response.details.messages.sort((a, b) => 
+                  new Date(a.sentAt) - new Date(b.sentAt)
+               );
                newestMessageTime = newMessages[newMessages.length - 1].sentAt;
-               appendNewMessages(newMessages);
+               renderMessages(newMessages, false);
                if (isAtBottom) scrollToBottom();
-               else showNewMessagesIndicator(newMessages.length);
             }
          }
       });
-   };
-
-   const appendNewMessages = (messages) => {
-      const messageList = $('#message-list');
-      const fragment = document.createDocumentFragment();
-
-      messages.forEach(msg => {
-         const isOwner = msg.userId === sessionStorage.getItem('userId');
-         const messageClass = isOwner ? 'text-end' : 'text-start';
-         const messageContent = msg.isDeleted ? '<em>This message was deleted.</em>' : msg.message;
-         const controls = isOwner && !msg.isDeleted ? `
-             <button class="btn btn-sm btn-warning edit-message" data-id="${msg.id}" data-message="${msg.message}">Edit</button>
-             <button class="btn btn-sm btn-danger delete-message" data-id="${msg.id}">Delete</button>
-          ` : '';
-
-         const li = document.createElement('li');
-         li.className = `mb-2 ${messageClass}`;
-         li.setAttribute('data-id', msg.id);
-         li.innerHTML = `
-             <strong>${msg.username}</strong><br>
-             <span class="badge bg-secondary">${messageContent}</span>
-             <small class="text-muted d-block">${msg.sentAt}</small>
-             ${controls}
-             <div class="message-vote">
-                ${upvoteButton} ${downvoteButton}
-             </div>
-          `;
-         fragment.appendChild(li);
-      });
-
-      messageList.append(fragment);
-   };
-
-   const showNewMessagesIndicator = (count) => {
-      $('#new-messages-indicator').remove();
-
-      const indicator = $(`<div id="new-messages-indicator" class="alert alert-info text-center"
-          style="position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%); cursor: pointer;">
-          ${count} new message${count > 1 ? 's' : ''}
-       </div>`);
-
-      indicator.on('click', () => {
-         scrollToBottom();
-         indicator.remove();
-      });
-
-      $('body').append(indicator);
-      setTimeout(() => indicator.fadeOut('slow', () => indicator.remove()), 5000);
    };
 
    fetchMessages();

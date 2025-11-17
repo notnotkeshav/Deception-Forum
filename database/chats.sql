@@ -94,3 +94,7 @@ CREATE TABLE privateChatVotes (
     FOREIGN KEY (messageId) REFERENCES privateChatMessages(id) ON DELETE CASCADE,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ALTER TABLE privateChatMessages 
+ADD COLUMN upvoteCount INT DEFAULT 0,
+ADD COLUMN downvoteCount INT DEFAULT 0;

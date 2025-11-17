@@ -3,62 +3,67 @@
 use Backend\Core\App;
 
 $db = App::container()->resolve('Core\Database');
-$params = getQueryParams();
 
-if (!isset($params['id'])) {
-    sendJsonResponse(false, "Chat ID is required.", [], 400);
-}
-
-$chatId = $params['id'];
-$oldestTimestamp = $params['oldestTimestamp'] ?? null;
-$lastMessageId = $params['lastMessageId'] ?? null;
-$limit = 20; // Define the chunk size for pagination
-
-// Check if the method is GET
 if ($method === 'GET') {
+    $chatId = $_GET['chatId'] ?? null;
+    $newestTimestamp = $_GET['newestTimestamp'] ?? null;
+
+    if (!$chatId) {
+        sendJsonResponse(false, "Chat ID is required", [], 400);
+    }
+
     try {
-        // Build the query for fetching messages
-        $query = "SELECT pcm.id, pcm.userId, pcm.message, pcm.isEdited, pcm.isDeleted, pcm.sentAt 
-                  FROM privateChatMessages pcm
-                  WHERE pcm.chatId = :chatId";
+        // Verify user is a participant in this private chat
+        $userId = $_SESSION['userId'] ?? null;
 
-        $bindings = [":chatId" => $chatId, ":limit" => $limit];
-
-        // If oldestTimestamp is provided, fetch messages older than that timestamp
-        if ($oldestTimestamp) {
-            // For pagination/infinite scrolling - get messages OLDER than the oldestTimestamp
-            $query .= " AND pcm.sentAt < :oldestTimestamp";
-            $bindings[":oldestTimestamp"] = $oldestTimestamp;
-            $query .= " ORDER BY pcm.sentAt DESC LIMIT :limit";
-        } else {
-            // For initial load - get the most recent messages
-            $query .= " ORDER BY pcm.sentAt DESC LIMIT :limit";
+        if (!$userId) {
+            sendJsonResponse(false, "Authentication required.", [], 401);
         }
 
-        // Execute the query
+        $participantStmt = $db->query(
+            "SELECT id FROM privateChats WHERE id = :chatId AND (user1Id = :userId1 OR user2Id = :userId2)",
+            [":chatId" => $chatId, ":userId1" => $userId, ":userId2" => $userId]
+        );
+
+        if (!$db->getOne($participantStmt)) {
+            sendJsonResponse(false, "Access denied. You are not a participant in this chat.", [], 403);
+        }
+
+        // Build query for new messages with user info (only safe fields)
+        $query = "SELECT pcm.id, pcm.userId, pcm.message, pcm.isEdited, pcm.isDeleted, pcm.sentAt,
+                         u.username
+                  FROM privateChatMessages pcm
+                  JOIN users u ON pcm.userId = u.id
+                  WHERE pcm.chatId = :chatId";
+
+        $bindings = [":chatId" => $chatId];
+
+        // If newestTimestamp is provided, get only messages newer than that
+        if ($newestTimestamp) {
+            $query .= " AND pcm.sentAt > :newestTimestamp";
+            $bindings[":newestTimestamp"] = $newestTimestamp;
+            $query .= " ORDER BY pcm.sentAt ASC";
+        } else {
+            // If no timestamp provided, get all messages (or limit to recent 50)
+            $query .= " ORDER BY pcm.sentAt ASC LIMIT 50";
+        }
+
         $stmt = $db->query($query, $bindings);
         $messages = $db->getAll($stmt);
 
-        // Modify messages to replace deleted ones with [deleted]
+        // Mark deleted messages and remove sensitive fields
         foreach ($messages as &$message) {
             if ($message['isDeleted']) {
-                $message['message'] = '[deleted]'; // Replace the message with '[deleted]'
+                $message['message'] = '[deleted]';
             }
+            // Remove internal flags from response
+            unset($message['isDeleted']);
         }
 
-        // For the initial load or when fetching older messages
-        // We need to reverse the order so that oldest are first (top) and newest are last (bottom)
-        if (!$lastMessageId) {
-            $messages = array_reverse($messages);
-        }
-
-        // Send the response with the messages
-        sendJsonResponse(true, "messages fechted successfully", ["messages" => $messages], 200);
+        sendJsonResponse(true, "Messages fetched successfully", ["messages" => $messages], 200);
     } catch (Exception $e) {
-        // Handle any errors that occur during the fetch process
-        sendJsonResponse(false, 'Internal server error', ["message" => "An error occurred while fetching messages: " . $e->getMessage()], 500,);
+        sendJsonResponse(false, "Internal server error", ["error" => $e->getMessage()], 500);
     }
 } else {
-    // Return an error if the HTTP method is not GET
     sendJsonResponse(false, "Invalid HTTP method.", [], 405);
 }

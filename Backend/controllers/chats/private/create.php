@@ -11,9 +11,25 @@ if (!isset($_SESSION['userId'])) {
 $userId = $_SESSION['userId'];
 
 if ($method === 'GET') {
-    // Fetch all users except the current user
-    $query = "SELECT id, username FROM users WHERE id != :userId";
-    $stmt = $db->query($query, [':userId' => $userId]);
+    // Fetch all users except the current user and those who already have a private chat
+    $query = "SELECT u.id, u.username 
+              FROM users u
+              WHERE u.id != :userId1
+              AND u.id NOT IN (
+                  SELECT CASE 
+                      WHEN pc.user1Id = :userId2 THEN pc.user2Id
+                      ELSE pc.user1Id
+                  END
+                  FROM privateChats pc
+                  WHERE pc.user1Id = :userId3 OR pc.user2Id = :userId4
+              )";
+
+    $stmt = $db->query($query, [
+        ':userId1' => $userId,
+        ':userId2' => $userId,
+        ':userId3' => $userId,
+        ':userId4' => $userId
+    ]);
     $users = $db->getAll($stmt);
 
     // Render the view
@@ -29,9 +45,25 @@ if ($method === 'GET') {
         sendJsonResponse(false, "Recipient ID is required.", [], 400);
     }
 
-    try {
+    // Validate recipient exists and is not the current user
+    if ($recipientId === $userId) {
+        sendJsonResponse(false, "Cannot create a chat with yourself.", [], 400);
+    }
 
+    try {
         $db->beginTransaction();
+
+        // Check if recipient exists
+        $userCheckStmt = $db->query(
+            "SELECT id FROM users WHERE id = :recipientId",
+            [':recipientId' => $recipientId]
+        );
+
+        if (!$db->getOne($userCheckStmt)) {
+            $db->rollBack();
+            sendJsonResponse(false, "Recipient user does not exist.", [], 404);
+        }
+
         // Check if chat already exists
         $query = "
             SELECT id 
@@ -49,18 +81,26 @@ if ($method === 'GET') {
         $existingChat = $db->getOne($stmt);
 
         if ($existingChat) {
-            sendJsonResponse(false, "Chat already exists.", ["chatId" => $existingChat['id']], 200);
+            $db->rollBack();
+            sendJsonResponse(false, "Chat already exists.", ["chatId" => $existingChat['id']], 409);
         }
 
         // Create a new chat
-        $query = "INSERT INTO privateChats (id, user1Id, user2Id) VALUES (UUID(), :user1, :user2)";
-        $db->query($query, [
+        $insertQuery = "INSERT INTO privateChats (id, user1Id, user2Id) VALUES (UUID(), :user1, :user2)";
+        $db->query($insertQuery, [
             ':user1' => $userId,
             ':user2' => $recipientId
         ]);
 
+        // Get the newly created chat ID
+        $newChatStmt = $db->query(
+            "SELECT id FROM privateChats WHERE user1Id = :user1 AND user2Id = :user2",
+            [':user1' => $userId, ':user2' => $recipientId]
+        );
+        $newChat = $db->getOne($newChatStmt);
+
         $db->commit();
-        sendJsonResponse(true, "Chat created successfully.", [], 201);
+        sendJsonResponse(true, "Chat created successfully.", ["chatId" => $newChat['id']], 201);
     } catch (Exception $e) {
         $db->rollBack();
         error_log("An error occurred: " . $e->getMessage());

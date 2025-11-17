@@ -143,3 +143,51 @@ BEGIN
 END //
 
 DELIMITER ;
+
+-- PROCEDURE #4
+
+DELIMITER //
+
+CREATE PROCEDURE updatePrivateMessageVotesAndGetCounts(
+    IN p_messageId CHAR(36),
+    IN p_voteType VARCHAR(10),
+    IN p_userId CHAR(36)
+)
+BEGIN
+    DECLARE existingVoteId CHAR(36);
+    DECLARE existingVoteType VARCHAR(10);
+
+    -- Check if the user has already voted
+    SELECT id, voteType INTO existingVoteId, existingVoteType
+    FROM privateChatVotes 
+    WHERE messageId = p_messageId AND userId = p_userId;
+
+    IF existingVoteId IS NOT NULL THEN
+        -- If the vote is different, update it
+        IF existingVoteType != p_voteType THEN
+            UPDATE privateChatVotes 
+            SET voteType = p_voteType 
+            WHERE id = existingVoteId;
+        ELSE
+            -- If the vote is the same, remove it
+            DELETE FROM privateChatVotes WHERE id = existingVoteId;
+        END IF;
+    ELSE
+        -- Insert a new vote if no existing vote
+        INSERT INTO privateChatVotes (messageId, userId, voteType)
+        VALUES (p_messageId, p_userId, p_voteType);
+    END IF;
+
+    -- Update the counts in privateChatMessages table
+    UPDATE privateChatMessages
+        SET upvoteCount = (SELECT COUNT(*) FROM privateChatVotes WHERE messageId = p_messageId AND voteType = 'upvote'),
+            downvoteCount = (SELECT COUNT(*) FROM privateChatVotes WHERE messageId = p_messageId AND voteType = 'downvote')
+        WHERE id = p_messageId;
+
+    -- Return the updated counts
+    SELECT upvoteCount, downvoteCount
+    FROM privateChatMessages
+    WHERE id = p_messageId;
+END //
+
+DELIMITER ;

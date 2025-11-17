@@ -45,14 +45,13 @@ if ($method === 'GET') {
         $group = $db->getOne($stmt);
 
         view("chats/group/member/add.view.php", [
-            "heading" => "Add Members to Group: " . htmlspecialchars($group['groupName'] ?? ''),
+            "heading" => htmlspecialchars($group['groupName'] ?? ''),
             "groupId" => $groupId,
             "users" => $users
         ]);
     } catch (Exception $e) {
         sendJsonResponse(false, "Error loading members view", ["error" => $e->getMessage()], 500);
     }
-
 } elseif ($method === 'POST') {
     $newMemberId = $_POST['memberId'] ?? null;
 
@@ -92,12 +91,10 @@ if ($method === 'GET') {
 
         $db->commit();
         sendJsonResponse(true, "Member added", [], 201);
-
     } catch (Exception $e) {
         $db->rollBack();
         sendJsonResponse(false, "Server error", ["error" => $e->getMessage()], 500);
     }
-
 } else {
     sendJsonResponse(false, "Invalid method", [], 405);
 }
