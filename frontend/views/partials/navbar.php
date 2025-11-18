@@ -60,6 +60,8 @@
         border-bottom: 1px solid transparent;
         text-transform: uppercase;
         letter-spacing: 1px;
+        position: relative;
+        display: inline-block;
     }
 
     .nav-link:hover {
@@ -94,21 +96,53 @@
     }
 
     .notification-badge {
+        display: none;
         background: #f03;
         color: #000;
-        border-radius: 50%;
-        padding: 2px 5px;
+        border-radius: 25px;
+        padding: 2px 6px;
         font-size: 0.7em;
         font-weight: bold;
         position: absolute;
-        top: -5px;
-        right: -10px;
+        top: -8px;
+        right: -15px;
+        box-shadow: 0 0 10px rgba(255, 0, 51, 0.8);
+        min-width: 18px;
+        text-align: center;
+    }
+
+    .notification-badge.visible {
+        display: inline-block;
+    }
+
+    /* Hide badge when on notifications page */
+    body[data-page="notifications"] .notification-badge {
+        display: none !important;
     }
 
     /* Active link indicator */
     .nav-link.active {
         color: #f03;
         border-bottom: 1px solid #f03;
+    }
+
+    /* Pulse animation for notification badge */
+    @keyframes pulse {
+
+        0%,
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        50% {
+            transform: scale(1.15);
+            opacity: 0.85;
+        }
+    }
+
+    .notification-badge.visible {
+        animation: pulse 2s infinite;
     }
 
     /* Blinking cursor effect */
@@ -147,7 +181,7 @@
             <li class="nav-item">
                 <a class="nav-link" href="/notifications">
                     Notifications
-                    <span class="notification-badge">3</span>
+                    <span id="notif-badge" class="notification-badge">0</span>
                 </a>
             </li>
             <li class="nav-item">
@@ -167,6 +201,14 @@
 </nav>
 
 <script type="text/javascript">
+    // Set page identifier on body for CSS targeting
+    (function() {
+        const path = window.location.pathname;
+        if (path === '/notifications' || path.startsWith('/notifications/')) {
+            document.body.setAttribute('data-page', 'notifications');
+        }
+    })();
+
     // Logout functionality
     document.getElementById('logout').addEventListener('click', function(e) {
         e.preventDefault();
@@ -178,15 +220,13 @@
                         'Content-Type': 'application/json'
                     },
                     credentials: 'same-origin',
-                    redirect: 'follow' // Follow redirects automatically (default)
+                    redirect: 'follow'
                 })
                 .then(response => {
-                    // Check if response was redirected
                     if (response.redirected) {
                         window.location.href = response.url;
                         return;
                     }
-
                     return response.json();
                 })
                 .then(data => {
@@ -206,7 +246,6 @@
         }
     });
 
-
     // Simulate active link based on current page
     const currentPage = window.location.pathname;
     document.querySelectorAll('.nav-link').forEach(link => {
@@ -215,9 +254,112 @@
         }
     });
 
-    // Notification count update (would be replaced with real data)
-    setInterval(() => {
-        const badge = document.querySelector('.notification-badge');
-        // badge.textContent = newCount;
-    }, 30000);
+    // ========================================
+    // NOTIFICATION POLLING SYSTEM
+    // ========================================
+    (function() {
+        let lastCheckTime = Math.floor(Date.now() / 1000);
+        let isPolling = false;
+        const isOnNotificationsPage = window.location.pathname === '/notifications' ||
+            window.location.pathname.startsWith('/notifications/');
+
+        function updateNotificationBadge(count) {
+            const badge = document.getElementById('notif-badge');
+            if (!badge) return;
+
+            // Don't show badge on notifications page
+            if (isOnNotificationsPage) {
+                badge.classList.remove('visible');
+                return;
+            }
+
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.classList.add('visible');
+            } else {
+                badge.classList.remove('visible');
+            }
+        }
+
+        function showDesktopNotification(notification) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                const notif = new Notification(notification.title, {
+                    body: notification.message,
+                    icon: '/public/images/logo.png',
+                    badge: '/public/images/badge.png',
+                    tag: notification.id,
+                    requireInteraction: false
+                });
+
+                notif.onclick = function() {
+                    window.focus();
+                    const data = notification.data ? JSON.parse(notification.data) : null;
+                    if (data && data.thread_id) {
+                        window.location.href = `/thread?id=${data.thread_id}`;
+                    } else {
+                        window.location.href = '/notifications';
+                    }
+                    notif.close();
+                };
+
+                setTimeout(() => notif.close(), 5000);
+            }
+        }
+
+        function pollNotifications() {
+            if (isPolling) return;
+            isPolling = true;
+
+            fetch(`/notifications/poll?last_check=${lastCheckTime}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        updateNotificationBadge(data.details.unread_count);
+
+                        if (data.details.new_notifications && data.details.new_notifications.length > 0) {
+                            data.details.new_notifications.forEach(notif => {
+                                showDesktopNotification(notif);
+                            });
+                        }
+
+                        lastCheckTime = data.details.timestamp;
+                    }
+                })
+                .catch(err => {
+                    console.error('Notification poll error:', err);
+                })
+                .finally(() => {
+                    isPolling = false;
+                });
+        }
+
+        // Request notification permission on first interaction
+        document.addEventListener('click', function requestPermission() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+            // Remove listener after first click
+            document.removeEventListener('click', requestPermission);
+        }, {
+            once: true
+        });
+
+        // Initial poll
+        pollNotifications();
+
+        // Poll every 30 seconds
+        setInterval(pollNotifications, 30000);
+
+        // Poll when page becomes visible
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                pollNotifications();
+            }
+        });
+
+        // Poll when window gains focus
+        window.addEventListener('focus', function() {
+            pollNotifications();
+        });
+    })();
 </script>

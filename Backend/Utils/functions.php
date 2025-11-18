@@ -25,12 +25,11 @@ function getURL(): string
 function abort(int $code = 404, array $data = []): void
 {
     http_response_code($code);
-    
+
     if ($code === 419) {
-        // Special case for CSRF token mismatch
         $data['message'] = $data['message'] ?? 'Page Expired';
     }
-    
+
     $errorView = "errors/{$code}.php";
     if (function_exists('view_path') && file_exists(view_path($errorView))) {
         view($errorView, $data);
@@ -65,11 +64,11 @@ function view_path(string $path = ''): string
 function view(string $path, array $args = []): void
 {
     $viewFile = view_path($path);
-    
+
     if (!file_exists($viewFile)) {
         throw new RuntimeException("View file not found: {$viewFile}");
     }
-    
+
     extract($args);
     require $viewFile;
 }
@@ -90,12 +89,12 @@ function getQueryParams(): array
 {
     $url = $_SERVER['REQUEST_URI'] ?? '';
     $url_components = parse_url($url);
-    
+
     if (isset($url_components['query'])) {
         parse_str($url_components['query'], $params);
         return $params;
     }
-    
+
     return [];
 }
 
@@ -106,7 +105,7 @@ function getRequestBody(): array
 {
     $rawData = file_get_contents('php://input');
     $data = json_decode($rawData, true);
-    
+
     return json_last_error() === JSON_ERROR_NONE ? $data : [];
 }
 
@@ -114,20 +113,20 @@ function getRequestBody(): array
  * Send JSON response
  */
 function sendJsonResponse(
-    bool $success, 
-    string $message, 
-    array $details = [], 
+    bool $success,
+    string $message,
+    array $details = [],
     int $httpCode = 200
 ): void {
     http_response_code((int)$httpCode);
     header('Content-Type: application/json');
-    
+
     echo json_encode([
         "success" => $success,
         "message" => $message,
         "details" => $details
     ]);
-    
+
     exit();
 }
 
@@ -137,13 +136,13 @@ function sendJsonResponse(
 function getBearerToken(): ?string
 {
     $headers = getallheaders();
-    
+
     if (isset($headers['Authorization'])) {
         if (str_starts_with($headers['Authorization'], 'Bearer ')) {
             return substr($headers['Authorization'], 7);
         }
     }
-    
+
     return null;
 }
 
@@ -164,7 +163,7 @@ function generateRandomPassword(int $length = 25): string
     ];
 
     $password = '';
-    
+
     // Ensure at least 2 uppercase, 2 lowercase, 3 digits, and 5 special chars
     $password .= substr(str_shuffle($charsets[0]), 0, 2);
     $password .= substr(str_shuffle($charsets[1]), 0, 2);
@@ -174,7 +173,7 @@ function generateRandomPassword(int $length = 25): string
     // Fill remaining length with random characters from all sets
     $allChars = implode('', $charsets);
     $remaining = $length - strlen($password);
-    
+
     for ($i = 0; $i < $remaining; $i++) {
         $password .= $allChars[random_int(0, strlen($allChars) - 1)];
     }
@@ -192,26 +191,26 @@ function loadEnv(string $file): void
     }
 
     $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    
+
     foreach ($lines as $line) {
         $line = trim($line);
-        
+
         if (empty($line) || str_starts_with($line, '#')) {
             continue;
         }
-        
+
         if (strpos($line, '=') !== false) {
             list($key, $value) = explode('=', $line, 2);
             $key = trim($key);
             $value = trim($value);
-            
+
             // Remove quotes if present
             if (preg_match('/^"(.*)"$/', $value, $matches)) {
                 $value = $matches[1];
             } elseif (preg_match('/^\'(.*)\'$/', $value, $matches)) {
                 $value = $matches[1];
             }
-            
+
             putenv("$key=$value");
             $_ENV[$key] = $value;
             $_SERVER[$key] = $value;
@@ -225,7 +224,7 @@ function loadEnv(string $file): void
 function queueEmail(string $to, string $subject, string $body): bool
 {
     $queueDir = __DIR__ . "/../core/email_queue";
-    
+
     if (!is_dir($queueDir)) {
         mkdir($queueDir, 0755, true);
     }
@@ -290,21 +289,45 @@ function hasPartialAuth(): bool
 }
 
 /**
- * Create a new notification for a user
+ * Create a notification for a user
+ * 
+ * @param string $userId - Recipient user ID
+ * @param string $type - Notification type (thread_comment, comment_reply, etc.)
+ * @param string $title - Notification title
+ * @param string $message - Notification message
+ * @param array|null $data - Additional JSON data (e.g., thread_id, comment_id)
+ * @return bool
  */
-function createNotification(
-    string $userId,
-    string $type,
-    string $title,
-    string $message,
-    array $data = null
-): bool {
+function createNotification($userId, $type, $title, $message, $data = null): bool
+{
+    $db = \Backend\Core\App::container()->resolve('Core\Database');
+
     try {
-        $db = \Backend\Core\App::container()->resolve('Core\Database');
-        
-        $sql = "INSERT INTO notifications (userId, type, title, message, data) VALUES (?, ?, ?, ?, ?)";
-        $stmt = $db->query($sql, [$userId, $type, $title, $message, $data ? json_encode($data) : null]);
-        
+        // Check user's notification settings
+        $settingsStmt = $db->query(
+            "SELECT {$type} as enabled FROM notification_settings WHERE userId = :userId",
+            [':userId' => $userId]
+        );
+        $settings = $db->getOne($settingsStmt);
+
+        // If user has disabled this notification type, don't create it
+        if ($settings && !$settings['enabled']) {
+            return false;
+        }
+
+        // Create notification
+        $db->query(
+            "INSERT INTO notifications (userId, type, title, message, data) 
+             VALUES (:userId, :type, :title, :message, :data)",
+            [
+                ':userId' => $userId,
+                ':type' => $type,
+                ':title' => $title,
+                ':message' => $message,
+                ':data' => $data ? json_encode($data) : null
+            ]
+        );
+
         return true;
     } catch (Exception $e) {
         error_log("Failed to create notification: " . $e->getMessage());
@@ -319,12 +342,17 @@ function getUnreadNotifications(string $userId, int $limit = 50): array
 {
     try {
         $db = \Backend\Core\App::container()->resolve('Core\Database');
-        
-        $sql = "SELECT * FROM notifications 
-                WHERE userId = ? AND read_at IS NULL 
-                ORDER BY created_at DESC LIMIT ?";
-        
-        return $db->query($sql, [$userId, $limit])->fetchAll();
+
+        $stmt = $db->query(
+            "SELECT id, type, title, message, data, created_at 
+             FROM notifications 
+             WHERE userId = :userId AND read_at IS NULL 
+             ORDER BY created_at DESC 
+             LIMIT :limit",
+            [':userId' => $userId, ':limit' => $limit]
+        );
+
+        return $db->getAll($stmt);
     } catch (Exception $e) {
         error_log("Failed to get unread notifications: " . $e->getMessage());
         return [];
@@ -338,13 +366,17 @@ function getUserNotifications(string $userId, int $offset = 0, int $limit = 20):
 {
     try {
         $db = \Backend\Core\App::container()->resolve('Core\Database');
-        
-        $sql = "SELECT * FROM notifications 
-                WHERE userId = ? 
-                ORDER BY created_at DESC 
-                LIMIT ? OFFSET ?";
-        
-        return $db->query($sql, [$userId, $limit, $offset])->fetchAll();
+
+        $stmt = $db->query(
+            "SELECT id, type, title, message, data, read_at, created_at 
+             FROM notifications 
+             WHERE userId = :userId 
+             ORDER BY created_at DESC 
+             LIMIT :limit OFFSET :offset",
+            [':userId' => $userId, ':limit' => $limit, ':offset' => $offset]
+        );
+
+        return $db->getAll($stmt);
     } catch (Exception $e) {
         error_log("Failed to get user notifications: " . $e->getMessage());
         return [];
@@ -358,20 +390,31 @@ function markNotificationsAsRead(string $userId, array $notificationIds = null):
 {
     try {
         $db = \Backend\Core\App::container()->resolve('Core\Database');
-        
+
         if ($notificationIds === null) {
             // Mark all notifications as read
-            $sql = "UPDATE notifications SET read_at = CURRENT_TIMESTAMP WHERE userId = ? AND read_at IS NULL";
-            $db->query($sql, [$userId]);
+            $db->query(
+                "UPDATE notifications SET read_at = CURRENT_TIMESTAMP WHERE userId = :userId AND read_at IS NULL",
+                [':userId' => $userId]
+            );
         } else {
             // Mark specific notifications as read
-            $placeholders = str_repeat('?,', count($notificationIds) - 1) . '?';
-            $sql = "UPDATE notifications SET read_at = CURRENT_TIMESTAMP 
-                    WHERE userId = ? AND id IN ($placeholders) AND read_at IS NULL";
-            $params = array_merge([$userId], $notificationIds);
-            $db->query($sql, $params);
+            $placeholders = implode(',', array_fill(0, count($notificationIds), '?'));
+            $params = [':userId' => $userId];
+
+            foreach ($notificationIds as $i => $id) {
+                $params[":id{$i}"] = $id;
+            }
+
+            $placeholderStr = implode(',', array_map(fn($i) => ":id{$i}", array_keys($notificationIds)));
+
+            $db->query(
+                "UPDATE notifications SET read_at = CURRENT_TIMESTAMP 
+                 WHERE userId = :userId AND id IN ({$placeholderStr}) AND read_at IS NULL",
+                $params
+            );
         }
-        
+
         return true;
     } catch (Exception $e) {
         error_log("Failed to mark notifications as read: " . $e->getMessage());
@@ -386,32 +429,17 @@ function getUnreadNotificationCount(string $userId): int
 {
     try {
         $db = \Backend\Core\App::container()->resolve('Core\Database');
-        
-        $sql = "SELECT COUNT(*) as count FROM notifications WHERE userId = ? AND read_at IS NULL";
-        $result = $db->query($sql, [$userId])->fetch();
-        
-        return (int) $result['count'];
+
+        $stmt = $db->query(
+            "SELECT COUNT(*) as count FROM notifications WHERE userId = :userId AND read_at IS NULL",
+            [':userId' => $userId]
+        );
+        $result = $db->getOne($stmt);
+
+        return (int)($result['count'] ?? 0);
     } catch (Exception $e) {
         error_log("Failed to get unread notification count: " . $e->getMessage());
         return 0;
-    }
-}
-
-/**
- * Check if user should receive notifications of a specific type
- */
-function shouldReceiveNotification(string $userId, string $type): bool
-{
-    try {
-        $db = \Backend\Core\App::container()->resolve('Core\Database');
-        
-        $sql = "SELECT $type FROM notification_settings WHERE userId = ?";
-        $result = $db->query($sql, [$userId])->fetch();
-        
-        return $result ? (bool) $result[$type] : true; // Default to true if no settings found
-    } catch (Exception $e) {
-        error_log("Failed to check notification settings: " . $e->getMessage());
-        return true; // Default to allowing notifications
     }
 }
 
@@ -422,14 +450,23 @@ function getNotificationSettings(string $userId): array
 {
     try {
         $db = \Backend\Core\App::container()->resolve('Core\Database');
-        
-        $sql = "SELECT * FROM notification_settings WHERE userId = ?";
-        $result = $db->query($sql, [$userId])->fetch();
-        
+
+        $stmt = $db->query(
+            "SELECT thread_comment, comment_reply, thread_vote, comment_vote, new_thread, mention, system 
+             FROM notification_settings 
+             WHERE userId = :userId",
+            [':userId' => $userId]
+        );
+        $result = $db->getOne($stmt);
+
         if (!$result) {
-            // Create default settings if they don't exist
-            $defaultSettings = [
-                'userId' => $userId,
+            // Create default settings
+            $db->query(
+                "INSERT INTO notification_settings (userId) VALUES (:userId)",
+                [':userId' => $userId]
+            );
+
+            return [
                 'thread_comment' => true,
                 'comment_reply' => true,
                 'thread_vote' => true,
@@ -438,14 +475,8 @@ function getNotificationSettings(string $userId): array
                 'mention' => true,
                 'system' => true
             ];
-            
-            $insertSql = "INSERT INTO notification_settings (userId, thread_comment, comment_reply, thread_vote, comment_vote, new_thread, mention, system) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-            $db->query($insertSql, array_values($defaultSettings));
-            
-            return $defaultSettings;
         }
-        
+
         return $result;
     } catch (Exception $e) {
         error_log("Failed to get notification settings: " . $e->getMessage());
@@ -460,26 +491,25 @@ function updateNotificationSettings(string $userId, array $settings): bool
 {
     try {
         $db = \Backend\Core\App::container()->resolve('Core\Database');
-        
+
         $allowedSettings = ['thread_comment', 'comment_reply', 'thread_vote', 'comment_vote', 'new_thread', 'mention', 'system'];
         $updateFields = [];
-        $params = [];
-        
+        $params = [':userId' => $userId];
+
         foreach ($allowedSettings as $setting) {
             if (isset($settings[$setting])) {
-                $updateFields[] = "$setting = ?";
-                $params[] = (bool) $settings[$setting];
+                $updateFields[] = "{$setting} = :{$setting}";
+                $params[":{$setting}"] = (bool)$settings[$setting] ? 1 : 0;
             }
         }
-        
+
         if (empty($updateFields)) {
             return false;
         }
-        
-        $params[] = $userId;
-        $sql = "UPDATE notification_settings SET " . implode(', ', $updateFields) . " WHERE userId = ?";
-        
+
+        $sql = "UPDATE notification_settings SET " . implode(', ', $updateFields) . " WHERE userId = :userId";
         $db->query($sql, $params);
+
         return true;
     } catch (Exception $e) {
         error_log("Failed to update notification settings: " . $e->getMessage());
@@ -488,49 +518,54 @@ function updateNotificationSettings(string $userId, array $settings): bool
 }
 
 /**
- * Long polling helper for notifications
+ * Simple polling helper for notifications - OPTIMIZED VERSION
+ * Returns new notifications since last check without blocking
+ * 
+ * @param string $userId - User ID
+ * @param int $lastCheckTime - Unix timestamp of last check
+ * @return array - Response with new notifications and count
  */
-function longPollNotifications(string $userId, int $lastCheckTime = 0, int $timeout = 30): array
+function pollNotifications(string $userId, int $lastCheckTime = 0): array
 {
-    $startTime = time();
-    $maxTime = $startTime + $timeout;
-    
-    while (time() < $maxTime) {
-        try {
-            $db = \Backend\Core\App::container()->resolve('Core\Database');
-            
-            // Check for new notifications since last check
-            $sql = "SELECT * FROM notifications 
-                    WHERE userId = ? AND UNIX_TIMESTAMP(created_at) > ? 
-                    ORDER BY created_at DESC";
-            
-            $notifications = $db->query($sql, [$userId, $lastCheckTime])->fetchAll();
-            
-            if (!empty($notifications)) {
-                return [
-                    'success' => true,
-                    'notifications' => $notifications,
-                    'unread_count' => getUnreadNotificationCount($userId),
-                    'timestamp' => time()
-                ];
-            }
-            
-            // Sleep for a short interval before checking again
-            usleep(500000); // 0.5 seconds
-            
-        } catch (Exception $e) {
-            error_log("Long polling error: " . $e->getMessage());
-            break;
+    try {
+        $db = \Backend\Core\App::container()->resolve('Core\Database');
+
+        // Get new notifications since last check
+        $newNotifications = [];
+        if ($lastCheckTime > 0) {
+            $stmt = $db->query(
+                "SELECT id, type, title, message, data, created_at 
+                 FROM notifications 
+                 WHERE userId = :userId 
+                 AND UNIX_TIMESTAMP(created_at) > :lastCheck 
+                 ORDER BY created_at DESC 
+                 LIMIT 10",
+                [
+                    ':userId' => $userId,
+                    ':lastCheck' => $lastCheckTime
+                ]
+            );
+            $newNotifications = $db->getAll($stmt);
         }
+
+        // Get unread count
+        $unreadCount = getUnreadNotificationCount($userId);
+
+        return [
+            'success' => true,
+            'new_notifications' => $newNotifications,
+            'unread_count' => $unreadCount,
+            'timestamp' => time()
+        ];
+    } catch (Exception $e) {
+        error_log("Polling error: " . $e->getMessage());
+        return [
+            'success' => false,
+            'new_notifications' => [],
+            'unread_count' => 0,
+            'timestamp' => time()
+        ];
     }
-    
-    // Timeout reached, return empty result
-    return [
-        'success' => true,
-        'notifications' => [],
-        'unread_count' => getUnreadNotificationCount($userId),
-        'timestamp' => time()
-    ];
 }
 
 /**
@@ -540,13 +575,127 @@ function cleanOldNotifications(int $daysToKeep = 30): bool
 {
     try {
         $db = \Backend\Core\App::container()->resolve('Core\Database');
-        
-        $sql = "DELETE FROM notifications WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)";
-        $db->query($sql, [$daysToKeep]);
-        
+
+        $db->query(
+            "DELETE FROM notifications WHERE created_at < DATE_SUB(NOW(), INTERVAL :days DAY)",
+            [':days' => $daysToKeep]
+        );
+
         return true;
     } catch (Exception $e) {
         error_log("Failed to clean old notifications: " . $e->getMessage());
         return false;
+    }
+}
+
+/**
+ * Get all members of a group chat
+ * 
+ * @param string $groupId - The group chat ID
+ * @param bool $activeOnly - Only return active members (default: true)
+ * @return array - Array of group members with their details
+ */
+function getGroupMembers(string $groupId, bool $activeOnly = true): array
+{
+    try {
+        $db = \Backend\Core\App::container()->resolve('Core\Database');
+
+        $query = "SELECT gm.userId, gm.role, gm.status, gm.joinedAt,
+                         u.username, u.name
+                  FROM groupMembers gm
+                  JOIN users u ON gm.userId = u.id
+                  WHERE gm.groupId = :groupId";
+
+        if ($activeOnly) {
+            $query .= " AND gm.status = 'active'";
+        }
+
+        $query .= " ORDER BY gm.joinedAt ASC";
+
+        $stmt = $db->query($query, [':groupId' => $groupId]);
+        return $db->getAll($stmt);
+    } catch (Exception $e) {
+        error_log("Failed to get group members: " . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Get group details
+ * 
+ * @param string $groupId - The group chat ID
+ * @return array|null - Group details or null if not found
+ */
+function getGroupDetails(string $groupId): ?array
+{
+    try {
+        $db = \Backend\Core\App::container()->resolve('Core\Database');
+
+        $stmt = $db->query(
+            "SELECT id, groupName, createdBy, createdAt 
+             FROM chatGroups 
+             WHERE id = :groupId",
+            [':groupId' => $groupId]
+        );
+
+        return $db->getOne($stmt) ?: null;
+    } catch (Exception $e) {
+        error_log("Failed to get group details: " . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Check if user is a member of a group
+ * 
+ * @param string $groupId - The group chat ID
+ * @param string $userId - The user ID
+ * @return bool - True if user is an active member
+ */
+function isGroupMember(string $groupId, string $userId): bool
+{
+    try {
+        $db = \Backend\Core\App::container()->resolve('Core\Database');
+
+        $stmt = $db->query(
+            "SELECT id FROM groupMembers 
+             WHERE groupId = :groupId 
+             AND userId = :userId 
+             AND status = 'active'",
+            [':groupId' => $groupId, ':userId' => $userId]
+        );
+
+        return $db->getOne($stmt) !== false;
+    } catch (Exception $e) {
+        error_log("Failed to check group membership: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Get user's role in a group
+ * 
+ * @param string $groupId - The group chat ID
+ * @param string $userId - The user ID
+ * @return string|null - User's role or null if not a member
+ */
+function getGroupMemberRole(string $groupId, string $userId): ?string
+{
+    try {
+        $db = \Backend\Core\App::container()->resolve('Core\Database');
+
+        $stmt = $db->query(
+            "SELECT role FROM groupMembers 
+             WHERE groupId = :groupId 
+             AND userId = :userId 
+             AND status = 'active'",
+            [':groupId' => $groupId, ':userId' => $userId]
+        );
+
+        $result = $db->getOne($stmt);
+        return $result ? $result['role'] : null;
+    } catch (Exception $e) {
+        error_log("Failed to get member role: " . $e->getMessage());
+        return null;
     }
 }

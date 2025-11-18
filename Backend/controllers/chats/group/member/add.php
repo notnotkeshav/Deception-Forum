@@ -90,6 +90,14 @@ if ($method === 'GET') {
         );
 
         $db->commit();
+        $notificationManager = new \Backend\Utils\NotificationManager();
+        $notificationManager->notifySystem(
+            $newMemberId,
+            "Added to Group Chat",
+            "You were added to the group \"{$groupName}\"",
+            ['group_id' => $groupId]
+        );
+
         sendJsonResponse(true, "Member added", [], 201);
     } catch (Exception $e) {
         $db->rollBack();

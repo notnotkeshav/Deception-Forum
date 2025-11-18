@@ -18,7 +18,15 @@ if ($method === 'GET') {
 
     try {
         $stmt = $db->query(
-            "SELECT * FROM comments WHERE threadId = :threadId AND isDeleted = 0 AND parentCommentId IS NULL ORDER BY createdAt DESC",
+            "SELECT c.id, c.content, c.createdAt, c.editedAt,  
+                    c.upvoteCount, c.downvoteCount, c.parentCommentId,
+                    u.id as userId, u.username
+             FROM comments c
+             JOIN users u ON c.userId = u.id
+             WHERE c.threadId = :threadId 
+             AND c.isDeleted = 0 
+             AND c.parentCommentId IS NULL 
+             ORDER BY c.createdAt DESC",
             [":threadId" => $threadId]
         );
         $comments = $db->getAll($stmt);
@@ -26,7 +34,14 @@ if ($method === 'GET') {
         function getReplies($parentId, $db, $depth = 1)
         {
             $stmt = $db->query(
-                "SELECT * FROM comments WHERE parentCommentId = :parentCommentId AND isDeleted = 0 ORDER BY createdAt DESC",
+                "SELECT c.id, c.content, c.createdAt, c.editedAt,
+                        c.upvoteCount, c.downvoteCount, c.parentCommentId,
+                        u.id as userId, u.username
+                 FROM comments c
+                 JOIN users u ON c.userId = u.id
+                 WHERE c.parentCommentId = :parentCommentId 
+                 AND c.isDeleted = 0 
+                 ORDER BY c.createdAt DESC",
                 [":parentCommentId" => $parentId]
             );
             $replies = $db->getAll($stmt);
@@ -35,9 +50,12 @@ if ($method === 'GET') {
                 if ($depth < 6) {
                     $reply['replies'] = getReplies($reply['id'], $db, $depth + 1);
                 } else {
-                    // Instead of fetching more, just tell frontend that more replies exist
+                    // Check if more replies exist beyond depth limit
                     $stmtCount = $db->query(
-                        "SELECT COUNT(*) as replyCount FROM comments WHERE parentCommentId = :parentCommentId AND isDeleted = 0",
+                        "SELECT COUNT(*) as replyCount 
+                         FROM comments 
+                         WHERE parentCommentId = :parentCommentId 
+                         AND isDeleted = 0",
                         [":parentCommentId" => $reply['id']]
                     );
                     $countResult = $db->getOne($stmtCount);
@@ -54,7 +72,8 @@ if ($method === 'GET') {
 
         sendJsonResponse(true, "Comments fetched successfully.", ["comments" => $comments], 200);
     } catch (Exception $e) {
-        sendJsonResponse(false, "Failed to fetch comments: " . $e->getMessage(), [], 500);
+        error_log("Failed to fetch comments: " . $e->getMessage());
+        sendJsonResponse(false, "Failed to fetch comments.", [], 500);
     }
 } elseif ($method === 'DELETE') {
     // Handle comment deletion (soft delete)
@@ -62,12 +81,21 @@ if ($method === 'GET') {
         sendJsonResponse(false, "Comment ID is required.", [], 400);
     }
 
-    $userId = $_SESSION['userId'];
+    $userId = $_SESSION['userId'] ?? null;
+
+    if (!$userId) {
+        sendJsonResponse(false, "Authentication required.", [], 401);
+    }
+
     $commentId = $body['commentId'];
 
     try {
+        // Get comment details
         $stmt = $db->query(
-            "SELECT userId, threadId FROM comments WHERE id = :id AND isDeleted = 0",
+            "SELECT c.id, c.userId, c.threadId 
+             FROM comments c
+             WHERE c.id = :id 
+             AND c.isDeleted = 0",
             [":id" => $commentId]
         );
         $existingComment = $db->getOne($stmt);
@@ -76,6 +104,7 @@ if ($method === 'GET') {
             sendJsonResponse(false, "Comment not found or already deleted.", [], 404);
         }
 
+        // Check if thread is locked
         $stmt = $db->query(
             "SELECT locked FROM threads WHERE id = :threadId",
             [":threadId" => $existingComment['threadId']]
@@ -83,17 +112,19 @@ if ($method === 'GET') {
         $thread = $db->getOne($stmt);
 
         if ($thread && $thread['locked'] == 1) {
-            if ($_SESSION['userId'] !== $existingComment['userId'] && !isAdmin($_SESSION['userId'])) {
+            if ($existingComment['userId'] !== $userId && !isAdmin($userId)) {
                 sendJsonResponse(false, "You cannot delete comments on a locked thread.", [], 403);
             }
         }
 
+        // Check permissions
         if ($existingComment['userId'] !== $userId && !isAdmin($userId)) {
             sendJsonResponse(false, "You do not have permission to delete this comment.", [], 403);
         }
 
         $db->beginTransaction();
 
+        // Soft delete the comment
         $stmt = $db->query(
             "UPDATE comments SET isDeleted = 1 WHERE id = :id",
             [":id" => $commentId]
@@ -108,15 +139,31 @@ if ($method === 'GET') {
             sendJsonResponse(false, "Failed to delete comment.", [], 500);
         }
     } catch (Exception $e) {
-        $db->rollBack();
-        sendJsonResponse(false, "An error occurred: " . $e->getMessage(), [], 500);
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        error_log("Error deleting comment: " . $e->getMessage());
+        sendJsonResponse(false, "An error occurred while deleting the comment.", [], 500);
     }
+} else {
+    sendJsonResponse(false, "Invalid HTTP method.", [], 405);
 }
 
-function isAdmin($userId)
+/**
+ * Check if user is an admin/moderator
+ */
+function isAdmin($userId): bool
 {
-    global $db;
-    $stmt = $db->query("SELECT count(*) FROM moderators WHERE userId = :userId", [":userId" => $userId]);
-    $user = $db->getOne($stmt);
-    return isset($user);
+    try {
+        $db = App::container()->resolve('Core\Database');
+        $stmt = $db->query(
+            "SELECT COUNT(*) as count FROM moderators WHERE userId = :userId",
+            [":userId" => $userId]
+        );
+        $result = $db->getOne($stmt);
+        return $result && $result['count'] > 0;
+    } catch (Exception $e) {
+        error_log("Failed to check admin status: " . $e->getMessage());
+        return false;
+    }
 }

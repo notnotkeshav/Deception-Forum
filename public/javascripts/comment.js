@@ -146,7 +146,7 @@ $(document).ready(function () {
 
       let commentHTML = `
          <li id="comment-${comment.id}" style="margin-left: ${level * 20}px;" class="list-group-item">
-             <p><strong>User ID ${comment.userId} Commented at:</strong> ${comment.createdAt}</p>
+             <p><strong>${comment.username} Commented at:</strong> ${comment.createdAt}</p>
              <div class="mb-2 comment-content-${comment.id}">${sanitizedContent}</div>
              <p>Upvotes: <span id="upvotes-${comment.id}">${comment.upvoteCount}</span>, Downvotes: <span id="downvotes-${comment.id}">${comment.downvoteCount}</span></p>
              ${isAuthorized && !locked ? `

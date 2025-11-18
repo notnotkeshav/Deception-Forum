@@ -98,3 +98,21 @@ CREATE TABLE privateChatVotes (
 ALTER TABLE privateChatMessages 
 ADD COLUMN upvoteCount INT DEFAULT 0,
 ADD COLUMN downvoteCount INT DEFAULT 0;
+
+
+-- Add system chat flag
+ALTER TABLE privateChats 
+ADD COLUMN isSystemChat BOOLEAN DEFAULT FALSE AFTER user2Id,
+ADD INDEX idx_system_chats (user2Id, isSystemChat);
+
+-- Add read tracking table
+CREATE TABLE chatReadStatus (
+    id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
+    chatId CHAR(36) NOT NULL,
+    userId CHAR(36) NOT NULL,
+    lastReadAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_user_chat (userId, chatId),
+    FOREIGN KEY (chatId) REFERENCES privateChats(id) ON DELETE CASCADE,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_read (userId, lastReadAt)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

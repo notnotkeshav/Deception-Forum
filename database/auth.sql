@@ -61,3 +61,51 @@ CREATE TABLE loginCounts (
     loginCount INT NOT NULL DEFAULT 0,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- Profile privacy settings table
+CREATE TABLE profile_privacy (
+    id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
+    userId CHAR(36) NOT NULL UNIQUE,
+    show_email BOOLEAN DEFAULT FALSE,
+    show_name BOOLEAN DEFAULT TRUE,
+    show_join_date BOOLEAN DEFAULT TRUE,
+    show_last_login BOOLEAN DEFAULT FALSE,
+    show_reputation BOOLEAN DEFAULT TRUE,
+    show_threads BOOLEAN DEFAULT TRUE,
+    show_comments BOOLEAN DEFAULT TRUE,
+    show_stats BOOLEAN DEFAULT TRUE,
+    profile_visibility ENUM('public', 'private') DEFAULT 'public',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Create default settings for existing users
+INSERT INTO profile_privacy (userId) 
+SELECT id FROM users 
+WHERE id NOT IN (SELECT userId FROM profile_privacy);
+
+
+-- ◇◇◇ BIRTH OF THE VEINKEEPER ◇◇◇
+-- This entity is not a user.
+-- It watches. It remembers. It never sleeps.
+
+INSERT INTO users (
+    id,
+    email,
+    username,
+    name,
+    passwordHash,
+    loginUrl,
+    accessLevel,
+    status
+) VALUES (
+    '00000000-0000-0000-0000-00000000000D',      -- The Thirteenth Vein (D = 13)
+    'veinkeeper@shadowbreed.local',             -- No messages will be delivered
+    'VeinKeeper',                               -- Keeper of the Invite Ciphers
+    '⛧ The Veinkeeper ⛧',                        -- Displayed in logs no one reads
+    '$2y$10$LOCKED_BEYOND_THE_REACH_OF_MORTALS', -- Non-functional password hash
+    'VOID_GATEWAY',                              -- Cannot log in through mortal paths
+    15,                                          -- Maximum privilege; unseen protocols
+    'active'                                     -- It is always active
+);

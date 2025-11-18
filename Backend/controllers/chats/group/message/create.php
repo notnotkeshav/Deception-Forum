@@ -36,6 +36,19 @@ if ($method === 'POST') {
     ]);
 
     $messageId = $db->lastInsertId();
+    $members = getGroupMembers($groupId); // You need to implement this
+    $notificationManager = new \Backend\Utils\NotificationManager();
+
+    foreach ($members as $member) {
+        if ($member['userId'] !== $userId) { // Don't notify sender
+            $notificationManager->notifySystem(
+                $member['userId'],
+                "New Group Message",
+                "{$_SESSION['username']} sent a message in {$groupName}",
+                ['group_id' => $groupId, 'message_id' => $messageId]
+            );
+        }
+    }
     sendJsonResponse(true, "Message sent successfully", ['messageId' => $messageId], 201);
 } else {
     sendJsonResponse(false, "Invalid HTTP method", [], 405);

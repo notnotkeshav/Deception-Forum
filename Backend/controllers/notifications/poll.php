@@ -2,31 +2,44 @@
 
 use Backend\Core\App;
 
-// Get current user
-$user = authUser();
-if (!$user) {
-    sendJsonResponse(false, 'Unauthorized', [], 401);
+$db = App::container()->resolve('Core\Database');
+$userId = $_SESSION['userId'] ?? null;
+
+if (!$userId) {
+    sendJsonResponse(false, "Unauthorized", [], 401);
 }
 
-$userId = $user['id'];
+try {
+    // Get the timestamp of last check from client
+    $lastCheck = $_GET['last_check'] ?? null;
 
-// Set headers for long polling
-header('Content-Type: application/json');
-header('Cache-Control: no-cache');
-header('Connection: keep-alive');
+    // Get unread count
+    $unreadCount = getUnreadNotificationCount($userId);
 
-// Get last check timestamp from query params
-$lastCheckTime = (int) ($_GET['last_check'] ?? 0);
-$timeout = min((int) ($_GET['timeout'] ?? 30), 60); // Max 60 seconds timeout
+    // If lastCheck provided, get new notifications since then
+    $newNotifications = [];
+    if ($lastCheck) {
+        $stmt = $db->query(
+            "SELECT id, type, title, message, data, created_at 
+             FROM notifications 
+             WHERE userId = :userId 
+             AND UNIX_TIMESTAMP(created_at) > :lastCheck 
+             ORDER BY created_at DESC 
+             LIMIT 10",
+            [
+                ':userId' => $userId,
+                ':lastCheck' => (int)$lastCheck
+            ]
+        );
+        $newNotifications = $db->getAll($stmt);
+    }
 
-// Validate timeout
-if ($timeout < 5) {
-    $timeout = 5; // Minimum 5 seconds
+    sendJsonResponse(true, "Poll successful", [
+        'unread_count' => $unreadCount,
+        'new_notifications' => $newNotifications,
+        'timestamp' => time()
+    ], 200);
+} catch (Exception $e) {
+    error_log("Notification poll error: " . $e->getMessage());
+    sendJsonResponse(false, "Error", ["error" => $e->getMessage()], 500);
 }
-
-// Perform long polling
-$result = longPollNotifications($userId, $lastCheckTime, $timeout);
-
-// Send response
-echo json_encode($result);
-exit;

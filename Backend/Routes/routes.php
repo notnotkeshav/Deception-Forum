@@ -3,11 +3,10 @@
 $router->get("/", "home.php"); // Render the homepage
 
 // Authentication Routes
-// Auth Routes (Keep as-is - correct)
 $router->get("/signup", "auth/signup.php")->middleware('guest');
-$router->post("/signup", "auth/signup.php")->middleware('guest'); 
+$router->post("/signup", "auth/signup.php")->middleware('guest');
 $router->get("/signin", "auth/signin.php")->middleware('guest');
-$router->post("/signin", "auth/signin.php")->middleware('guest'); 
+$router->post("/signin", "auth/signin.php")->middleware('guest');
 $router->get("/username", "auth/generate_username.php")->middleware('guest')->middleware('username_rate_limit');
 
 // Updated Routes
@@ -95,6 +94,10 @@ $router->post("/group-chat/member/add", "chats/group/member/add.php")->only('aut
 
 // User Profile Routes
 $router->get("/user", "user/details.php")->only('auth'); // View authenticated user's profile details
+$router->get("/profile", "profile/index.php"); // View any user's public profile by username
+$router->get("/profile/settings", "profile/settings.php")->only('auth'); // Privacy settings page
+$router->post("/profile/settings", "profile/settings.php")->only('auth'); // Update privacy settings
+$router->put("/profile/settings", "profile/settings.php")->only('auth'); // AJAX update individual setting
 
 // Captcha Routes
 $router->get('/captcha', 'captcha/index.php');

@@ -346,8 +346,8 @@
                                         <?php endif; ?>
                                     </td>
                                     <td class="thread-author">
-                                        <a href="/user/profile?id=<?php echo htmlspecialchars($thread['userId']); ?>">
-                                            <?php echo htmlspecialchars($thread['username']); ?>
+                                        <a href="/profile?u=<?= urlencode($thread['username']) ?>">
+                                            <?= htmlspecialchars($thread['username']) ?>
                                         </a>
                                     </td>
                                     <td class="thread-stats">

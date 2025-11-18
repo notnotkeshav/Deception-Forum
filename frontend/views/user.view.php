@@ -273,6 +273,7 @@
             <div class="profile-actions">
                 <!-- <a href="edit-profile" class="btn">Edit Profile (404) </a> -->
                 <a href="change-password" class="btn">Change Password</a>
+                <a href="profile/settings" class="btn">Profile Settings</a>
                 <!-- <a href="admin/setup" class="btn">Manage TFA</a> -->
             </div>
         </div>

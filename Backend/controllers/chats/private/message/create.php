@@ -22,6 +22,15 @@ if ($method === 'POST') {
     $db->query($query, [':chatId' => $chatId, ':userId' => $userId, ':message' => $message]);
 
     $messageId = $db->lastInsertId();
+
+    $notificationManager = new \Backend\Utils\NotificationManager();
+    $notificationManager->notifySystem(
+        $otherUserId, // The recipient
+        "New Private Message",
+        "{$_SESSION['username']} sent you a message",
+        ['chat_id' => $chatId, 'message_id' => $messageId]
+    );
+
     sendJsonResponse(true, "Message sent successfully", ['messageId' => $messageId], 201);
 } else {
     sendJsonResponse(false, "Invalid HTTP method", [], 405);

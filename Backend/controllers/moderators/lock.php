@@ -55,6 +55,15 @@ if ($method === 'PUT') {
         $cache->delete("thread:" . $body['threadId']);
 
         $db->commit();
+        // After locking thread
+        $notificationManager = new \Backend\Utils\NotificationManager();
+        $notificationManager->notifySystem(
+            $thread['authorId'],
+            "Thread Locked",
+            "Your thread \"{$thread['title']}\" has been locked by a moderator",
+            ['thread_id' => $threadId]
+        );
+
         sendJsonResponse(true, "Thread lock status updated successfully.", [
             "locked" => $newLockStatus
         ], 200);
