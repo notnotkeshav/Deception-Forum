@@ -292,24 +292,6 @@
             <div class="setting-item">
                 <div class="setting-info">
                     <label class="setting-label">
-                        <span class="status-indicator <?= $settings['thread_vote'] ? 'active' : '' ?>"></span>
-                        Votes on Your Threads
-                    </label>
-                    <span class="setting-description">
-                        Get notified when someone upvotes your threads
-                    </span>
-                </div>
-                <label class="toggle-switch">
-                    <input type="checkbox" name="thread_vote"
-                        data-setting="thread_vote"
-                        <?= $settings['thread_vote'] ? 'checked' : '' ?>>
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
-
-            <div class="setting-item">
-                <div class="setting-info">
-                    <label class="setting-label">
                         <span class="status-indicator <?= $settings['comment_vote'] ? 'active' : '' ?>"></span>
                         Votes on Your Comments
                     </label>

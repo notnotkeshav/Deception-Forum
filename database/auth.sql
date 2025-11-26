@@ -1,4 +1,3 @@
-create database forum;
 use forum;
 CREATE TABLE users (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
@@ -18,7 +17,7 @@ CREATE TABLE users (
     timezone VARCHAR(50) DEFAULT 'UTC',
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     isDeleted BOOLEAN DEFAULT FALSE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE passwords (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
@@ -27,7 +26,7 @@ CREATE TABLE passwords (
     password VARCHAR(255) NOT NULL,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE inviteCodes (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
@@ -38,7 +37,7 @@ CREATE TABLE inviteCodes (
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (generatorId) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (usedBy) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE passwordResets (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
@@ -49,7 +48,7 @@ CREATE TABLE passwordResets (
     isDeleted TINYINT(1) DEFAULT 0,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 ALTER TABLE users 
 ADD COLUMN totp_secret VARCHAR(32) DEFAULT NULL,
@@ -60,7 +59,7 @@ CREATE TABLE loginCounts (
     userId CHAR(36) PRIMARY KEY NOT NULL,
     loginCount INT NOT NULL DEFAULT 0,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Profile privacy settings table
 CREATE TABLE profile_privacy (
@@ -78,7 +77,7 @@ CREATE TABLE profile_privacy (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Create default settings for existing users
 INSERT INTO profile_privacy (userId) 

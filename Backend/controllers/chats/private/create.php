@@ -100,7 +100,8 @@ if ($method === 'GET') {
         $newChat = $db->getOne($newChatStmt);
 
         $db->commit();
-        sendJsonResponse(true, "Chat created successfully.", ["chatId" => $newChat['id']], 201);
+        // sendJsonResponse(true, "Chat created successfully.", ["chatId" => $newChat['id']], 201);
+        redirect("/chats/private/{$newChat['id']}");
     } catch (Exception $e) {
         $db->rollBack();
         error_log("An error occurred: " . $e->getMessage());

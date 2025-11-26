@@ -70,19 +70,45 @@ if ($method === 'GET') {
         $membership = $db->getOne($stmt);
 
         if (!$membership || !in_array($membership['role'], ['owner', 'admin'])) {
+            $db->rollBack();
             sendJsonResponse(false, "You do not have permission to add members", [], 403);
         }
 
-        // Check for duplicate
+        // Fetch group information for notification
+        $stmt = $db->query(
+            "SELECT groupName FROM chatGroups WHERE id = :id",
+            [':id' => $groupId]
+        );
+        $group = $db->getOne($stmt);
+
+        if (!$group) {
+            $db->rollBack();
+            sendJsonResponse(false, "Group not found", [], 404);
+        }
+
+        // Check if user exists
+        $stmt = $db->query(
+            "SELECT id, username FROM users WHERE id = :userId",
+            [':userId' => $newMemberId]
+        );
+        $newUser = $db->getOne($stmt);
+
+        if (!$newUser) {
+            $db->rollBack();
+            sendJsonResponse(false, "User not found", [], 404);
+        }
+
+        // Check for duplicate membership
         $stmt = $db->query(
             "SELECT id FROM groupMembers WHERE groupId = :groupId AND userId = :memberId",
             [':groupId' => $groupId, ':memberId' => $newMemberId]
         );
         if ($db->getOne($stmt)) {
+            $db->rollBack();
             sendJsonResponse(false, "User already in group", [], 409);
         }
 
-        // Add member
+        // Add member to group
         $db->query(
             "INSERT INTO groupMembers (id, groupId, userId, role, status) 
              VALUES (UUID(), :groupId, :userId, 'member', 'active')",
@@ -90,19 +116,33 @@ if ($method === 'GET') {
         );
 
         $db->commit();
-        $notificationManager = new \Backend\Utils\NotificationManager();
-        $notificationManager->notifySystem(
-            $newMemberId,
-            "Added to Group Chat",
-            "You were added to the group \"{$groupName}\"",
-            ['group_id' => $groupId]
-        );
 
-        sendJsonResponse(true, "Member added", [], 201);
+        // Send notification after successful commit
+        try {
+            $notificationManager = new \Backend\Utils\NotificationManager();
+            $notificationManager->notifySystem(
+                $newMemberId,
+                "Added to Group Chat",
+                "You were added to the group \"{$group['groupName']}\"",
+                ['group_id' => $groupId]
+            );
+        } catch (Exception $notifException) {
+            // Log notification failure but don't fail the request
+            error_log("Failed to send notification: " . $notifException->getMessage());
+        }
+
+        sendJsonResponse(true, "Member added successfully", [
+            'memberId' => $newMemberId,
+            'username' => $newUser['username'],
+            'groupName' => $group['groupName']
+        ], 201);
     } catch (Exception $e) {
-        $db->rollBack();
-        sendJsonResponse(false, "Server error", ["error" => $e->getMessage()], 500);
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        error_log("Error adding group member: " . $e->getMessage());
+        sendJsonResponse(false, "Failed to add member", ["error" => $e->getMessage()], 500);
     }
 } else {
-    sendJsonResponse(false, "Invalid method", [], 405);
+    sendJsonResponse(false, "Invalid HTTP method", [], 405);
 }

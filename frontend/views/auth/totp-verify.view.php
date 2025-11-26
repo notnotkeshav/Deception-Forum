@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⛧ Red Skull Authentication ⛧</title>
+    <title>⛧ <?= $is_session_renewal ?? false ? 'Session Renewal' : 'Red Skull Authentication' ?> ⛧</title>
     <style>
         @font-face {
             font-family: 'vamp';
@@ -54,8 +54,26 @@
 
         .auth-message {
             color: #aaa;
-            margin-bottom: 2rem;
+            margin-bottom: 1rem;
             font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .session-warning {
+            background: rgba(255, 165, 0, 0.1);
+            border: 1px solid #ffa500;
+            color: #ffa500;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.85rem;
+        }
+
+        .username-display {
+            color: #f03;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin: 0.5rem 0;
         }
 
         .code-input {
@@ -151,6 +169,7 @@
             cursor: pointer;
             text-decoration: underline;
             padding: 10px;
+            font-size: 0.85rem;
         }
 
         .btn-link:hover {
@@ -162,14 +181,31 @@
 <body>
     <div class="auth-container">
         <div class="auth-header">
-            <h1>⛧ VERIFY IDENTITY ⛧</h1>
-            <p class="auth-message">Enter the 6-digit code from your authenticator app</p>
+            <h1>⛧ <?= ($is_session_renewal ?? false) ? 'SESSION RENEWAL' : 'VERIFY IDENTITY' ?> ⛧</h1>
+            <p class="auth-message">
+                <?php if (($is_session_renewal ?? false) && ($expiry_reason ?? '') === 'expired'): ?>
+                    ⏱️ Your session expired after 150 minutes for security.
+                    <?php if (!empty($username)): ?>
+            <div class="username-display">Verify as: <?= htmlspecialchars($username) ?></div>
+        <?php endif; ?>
+    <?php else: ?>
+        Enter the 6-digit code from your authenticator app
+    <?php endif; ?>
+    </p>
         </div>
 
-        <form id="totpForm">
-            <input type="hidden" name="action" value="verify-login">
-            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token ?? '') ?>">
+        <?php if (($is_session_renewal ?? false) && ($expiry_reason ?? '') === 'expired'): ?>
+            <div class="session-warning">
+                🔒 Your session has expired for security reasons. Please verify your identity to continue.
+            </div>
+        <?php endif; ?>
 
+        <form id="totpForm">
+            <input type="hidden" name="action" value="<?= ($is_session_renewal ?? false) ? 'renew-session' : 'verify-login' ?>">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token ?? '') ?>">
+            <?php if (($is_session_renewal ?? false) && !empty($return_to ?? '')): ?>
+                <input type="hidden" name="return_to" value="<?= htmlspecialchars($return_to) ?>">
+            <?php endif; ?>
 
             <div class="code-input">
                 <input type="text" maxlength="1" pattern="\d" required>
@@ -179,13 +215,18 @@
                 <input type="text" maxlength="1" pattern="\d" required>
                 <input type="text" maxlength="1" pattern="\d" required>
             </div>
-            <div class="form-group">
-                <button type="button" id="useBackupCode" class="btn-link">
-                    Lost access? Use a backup code
-                </button>
-            </div>
 
-            <button type="submit" id="verifyBtn" class="btn">VERIFY</button>
+            <?php if (!($is_session_renewal ?? false)): ?>
+                <div class="form-group">
+                    <button type="button" id="useBackupCode" class="btn-link">
+                        Lost access? Use a backup code
+                    </button>
+                </div>
+            <?php endif; ?>
+
+            <button type="submit" id="verifyBtn" class="btn">
+                <?= ($is_session_renewal ?? false) ? 'RENEW SESSION' : 'VERIFY' ?>
+            </button>
         </form>
 
         <div id="error-block" class="message error" style="display: none;"></div>
@@ -199,6 +240,7 @@
             const verifyBtn = document.getElementById('verifyBtn');
             const errorBlock = document.getElementById('error-block');
             const successBlock = document.getElementById('success-block');
+            const isSessionRenewal = <?= json_encode($is_session_renewal ?? false) ?>;
 
             // Handle code input navigation
             codeInputs.forEach((input, index) => {
@@ -254,22 +296,17 @@
 
                     if (data.success) {
                         if (data.details?.session) {
-                            // Store session data
-                            sessionStorage.setItem('token', data.details.session.token);
+                            // Show success message
+                            showSuccess(isSessionRenewal ? 'Session renewed! Redirecting...' : 'Verification successful! Redirecting...');
+                            // sessionStorage.setItem('token', data.details.session.token);
                             sessionStorage.setItem('userId', data.details.session.userId);
-                            sessionStorage.setItem('user', JSON.stringify(data.details.session.user));
-
-                            if (data.details.session.moderator !== undefined) {
-                                sessionStorage.setItem('moderator', data.details.session.moderator);
-                            }
-
-                            // Show success and redirect
-                            showSuccess('Verification successful! Redirecting...');
-
+                            sessionStorage.setItem('username', data.details.session.username);
+                            // sessionStorage.setItem('user', JSON.stringify(data.details.session.user));
                             // Determine redirect URL
                             let redirectUrl = '/threads'; // Default
                             const urlParams = new URLSearchParams(window.location.search);
                             const returnTo = urlParams.get('returnTo');
+
                             if (returnTo) {
                                 redirectUrl = decodeURIComponent(returnTo);
                             }
@@ -308,30 +345,16 @@
                 successBlock.textContent = message;
                 successBlock.style.display = 'block';
             }
-        });
 
-        document.getElementById('useBackupCode').addEventListener('click', function() {
-            const codeInput = document.getElementById('code');
-            const instructionText = document.querySelector('label[for="code"]');
-
-            if (this.dataset.mode === 'backup') {
-                // Switch back to TOTP mode
-                this.textContent = 'Lost access? Use a backup code';
-                this.dataset.mode = 'totp';
-                instructionText.textContent = 'Enter the 6-digit code from your authenticator app:';
-                codeInput.placeholder = '000000';
-                codeInput.maxLength = 6;
-            } else {
-                // Switch to backup code mode
-                this.textContent = 'Use authenticator app instead';
-                this.dataset.mode = 'backup';
-                instructionText.textContent = 'Enter one of your backup codes:';
-                codeInput.placeholder = 'XXXX-XXXX-XXXX-XXXX';
-                codeInput.maxLength = 19;
-            }
-
-            codeInput.value = '';
-            codeInput.focus();
+            // Backup code toggle (only for regular login)
+            <?php if (!($is_session_renewal ?? false)): ?>
+                const useBackupCodeBtn = document.getElementById('useBackupCode');
+                if (useBackupCodeBtn) {
+                    useBackupCodeBtn.addEventListener('click', function() {
+                        alert('Backup code functionality not yet implemented.');
+                    });
+                }
+            <?php endif; ?>
         });
     </script>
 </body>

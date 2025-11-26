@@ -70,7 +70,7 @@ class NotificationManager
     /**
      * Notify user when mentioned in a comment
      */
-    public function notifyMention(string $mentionedUserId, string $mentionerUserId, string $threadId, string $commentId = null): void
+    public function notifyMention(string $mentionedUserId, string $mentionerUserId, string $threadId, string $commentId = ""): void
     {
         if ($mentionedUserId === $mentionerUserId) {
             return;

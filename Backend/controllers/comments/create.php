@@ -28,7 +28,7 @@ if ($method === 'POST') {
 
     // Check if the thread exists and is not locked
     $stmt = $db->query(
-        "SELECT id, locked, authorId FROM threads WHERE id = :id",
+        "SELECT id, locked, userId FROM threads WHERE id = :id",
         [":id" => $threadId]
     );
     $thread = $db->getOne($stmt);
@@ -82,11 +82,11 @@ if ($method === 'POST') {
             }
         } else {
             // This is a comment on the thread
-            if ($thread['authorId'] !== $userId) {
+            if ($thread['userId'] !== $userId) {
                 $notificationManager->notifyThreadComment(
                     $threadId,
                     $userId,
-                    $thread['authorId']
+                    $thread['userId']
                 );
             }
         }

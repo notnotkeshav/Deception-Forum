@@ -18,9 +18,12 @@ $router->post("/generate_invite_code", "auth/invite.php")->middleware('auth'); /
 $router->get("/totp-setup", "auth/totp_setup.php"); // Allow both full and partial auth for TOTP setup
 $router->post("/totp-setup", "auth/totp_setup.php"); // Allow both full and partial auth for TOTP setup
 
-$router->get("/verify-totp", "auth/verify_totp.php")->middleware('partial_auth'); // Keep as partial_auth - correct
-$router->post("/verify-totp", "auth/verify_totp.php")->middleware('partial_auth'); // Keep as partial_auth - correct
+$router->get("/verify-totp", "auth/verify_totp.php");
+$router->post("/verify-totp", "auth/verify_totp.php");
 
+// Session Management Routes
+$router->get("/session/check", "auth/session_check.php")->only('auth'); // Check session status
+$router->post("/session/renew", "auth/session_renew.php")->only('auth'); // Renew session via TOTP
 
 // Password Management Routes
 $router->get("/change-password", "auth/password/change.php")->only('auth'); // Display change password form (authenticated users only)
@@ -31,7 +34,7 @@ $router->get("/reset-password", "auth/password/reset.php")->only('guest'); // Di
 $router->patch("/reset-password", "auth/password/reset.php")->only('guest'); // Process password reset request using token
 
 // Thread Management Routes
-$router->get("/threads", "threads/all.php"); // Display all available threads
+$router->get("/threads", "threads/all.php")->only('auth'); // Display all available threads
 $router->get("/threads/new", "threads/create.php")->only('auth'); // Display form to create a new thread (authenticated users only)
 $router->get("/thread/comments", "threads/comment-page.php")->only('auth'); // Display form to create a new thread (authenticated users only)
 $router->post("/threads", "threads/create.php")->only('auth'); // Handle new thread submission

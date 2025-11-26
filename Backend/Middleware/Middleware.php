@@ -11,6 +11,7 @@ class Middleware
         'auth' => AuthMiddleware::class,
         'partial_auth' => PartialAuthMiddleware::class,
         'username_rate_limit' => UsernameGenerationMiddleware::class,
+        // 'admin' => AdminMiddleware::class,
     ];
 
     public static function resolve($key)
@@ -35,24 +36,24 @@ class UsernameGenerationMiddleware
     {
         $cache = App::container()->resolve('Core\Cache');
         $ipAddress = $_SERVER['REMOTE_ADDR'];
-        
+
         // Check rate limiting
         $ipRateLimitKey = "username_gen_ip:" . hash('sha256', $ipAddress);
         $requestLog = $cache->get($ipRateLimitKey)['value'] ?? [];
         $now = time();
         $windowSeconds = 3600; // 1 hour
         $maxRequests = 7;
-        
+
         // Clean old requests
         $requestLog = array_filter($requestLog, fn($timestamp) => $now - $timestamp < $windowSeconds);
-        
+
         // Check if rate limited
         if (count($requestLog) >= $maxRequests) {
             http_response_code(429);
             header('Content-Type: application/json');
-            
+
             $cachedUsernames = $cache->get("username_pool_ip:" . hash('sha256', $ipAddress))['value'] ?? [];
-            
+
             if (empty($cachedUsernames)) {
                 // Generate final pool
                 $finalUsernames = [];
@@ -62,7 +63,7 @@ class UsernameGenerationMiddleware
                 $cache->set("username_pool_ip:" . hash('sha256', $ipAddress), $finalUsernames, 3600);
                 $cachedUsernames = $finalUsernames;
             }
-            
+
             echo json_encode([
                 'success' => false,
                 'message' => 'Rate limit exceeded. Choose from provided usernames.',
@@ -111,17 +112,17 @@ class GuestMiddleware implements MiddlewareInterface
     private function isFullyAuthenticated()
     {
         // Based on signin.php: user is fully authenticated if they have user session and token
-        return !empty($_SESSION['user']) && 
-               !empty($_SESSION['token']) && 
-               !empty($_SESSION['token_expiration']) && 
-               $_SESSION['token_expiration'] > time();
+        return !empty($_SESSION['user']) &&
+            !empty($_SESSION['token']) &&
+            !empty($_SESSION['token_expiration']) &&
+            $_SESSION['token_expiration'] > time();
     }
 
     private function hasPartialAuth()
     {
         // Based on signin.php and totp_setup.php: partial auth exists and not expired
-        return !empty($_SESSION['partial_auth']) && 
-               $_SESSION['partial_auth']['expires'] > time();
+        return !empty($_SESSION['partial_auth']) &&
+            $_SESSION['partial_auth']['expires'] > time();
     }
 }
 
@@ -153,11 +154,11 @@ class PartialAuthMiddleware implements MiddlewareInterface
     private function isFullyAuthenticated()
     {
         // User has complete authentication with valid token
-        return !empty($_SESSION['user']) && 
-               !empty($_SESSION['token']) && 
-               !empty($_SESSION['token_expiration']) && 
-               $_SESSION['token_expiration'] > time() &&
-               !empty($_SESSION['userId']);
+        return !empty($_SESSION['user']) &&
+            !empty($_SESSION['token']) &&
+            !empty($_SESSION['token_expiration']) &&
+            $_SESSION['token_expiration'] > time() &&
+            !empty($_SESSION['userId']);
     }
 
     private function hasValidPartialAuth()
@@ -208,11 +209,11 @@ class AuthMiddleware implements MiddlewareInterface
         // 2. Must have valid token
         // 3. Token must not be expired
         // 4. Must have userId
-        return !empty($_SESSION['user']) && 
-               !empty($_SESSION['token']) && 
-               !empty($_SESSION['token_expiration']) && 
-               $_SESSION['token_expiration'] > time() &&
-               !empty($_SESSION['userId']);
+        return !empty($_SESSION['user']) &&
+            !empty($_SESSION['token']) &&
+            !empty($_SESSION['token_expiration']) &&
+            $_SESSION['token_expiration'] > time() &&
+            !empty($_SESSION['userId']);
     }
 
     private function isAccountInvalid()
@@ -287,9 +288,16 @@ class SessionHelper
     public static function clearAuth()
     {
         $keysToUnset = [
-            'user', 'userId', 'token', 'token_expiration',
-            'partial_auth', 'totp_user_info', 'moderator',
-            'totp_verified', 'csrf_token', 'totp_setup'
+            'user',
+            'userId',
+            'token',
+            'token_expiration',
+            'partial_auth',
+            'totp_user_info',
+            'moderator',
+            'totp_verified',
+            'csrf_token',
+            'totp_setup'
         ];
 
         foreach ($keysToUnset as $key) {
@@ -299,19 +307,17 @@ class SessionHelper
 
     public static function isFullyAuthenticated()
     {
-        return !empty($_SESSION['user']) && 
-               !empty($_SESSION['token']) && 
-               !empty($_SESSION['token_expiration']) && 
-               $_SESSION['token_expiration'] > time() &&
-               !empty($_SESSION['userId']);
+        return !empty($_SESSION['user']) &&
+            !empty($_SESSION['token']) &&
+            !empty($_SESSION['token_expiration']) &&
+            $_SESSION['token_expiration'] > time() &&
+            !empty($_SESSION['userId']);
     }
 
     public static function hasPartialAuth()
     {
-        return !empty($_SESSION['partial_auth']) && 
-               $_SESSION['partial_auth']['expires'] > time() &&
-               !empty($_SESSION['partial_auth']['userId']);
+        return !empty($_SESSION['partial_auth']) &&
+            $_SESSION['partial_auth']['expires'] > time() &&
+            !empty($_SESSION['partial_auth']['userId']);
     }
 }
-
-?>

@@ -58,7 +58,7 @@ if ($method === 'PUT') {
         // After locking thread
         $notificationManager = new \Backend\Utils\NotificationManager();
         $notificationManager->notifySystem(
-            $thread['authorId'],
+            $thread['userId'],
             "Thread Locked",
             "Your thread \"{$thread['title']}\" has been locked by a moderator",
             ['thread_id' => $threadId]

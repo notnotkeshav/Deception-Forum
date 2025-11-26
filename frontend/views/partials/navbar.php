@@ -200,6 +200,13 @@
     </div>
 </nav>
 
+<?php if (!empty($_SESSION['userId'])): ?>
+    <script src="/public/javascripts/session-monitor.js"></script>
+    <script>
+        document.body.dataset.authenticated = 'true';
+    </script>
+<?php endif; ?>
+
 <script type="text/javascript">
     // Set page identifier on body for CSS targeting
     (function() {
