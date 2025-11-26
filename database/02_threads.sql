@@ -16,13 +16,13 @@ CREATE TABLE threads (
     INDEX idxCreatedAt (createdAt),
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (lockedBy) REFERENCES users(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE categories (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
     name VARCHAR(255) NOT NULL,
     description TEXT DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE threadCategoryLink (
     threadId CHAR(36) NOT NULL,
@@ -31,7 +31,7 @@ CREATE TABLE threadCategoryLink (
     FOREIGN KEY (threadId) REFERENCES threads(id) ON DELETE CASCADE,
     FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE CASCADE,
     INDEX idxThreadCategory (threadId, categoryId)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE threadImages (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
@@ -39,7 +39,7 @@ CREATE TABLE threadImages (
     imageUrl TEXT NOT NULL,
     FOREIGN KEY (threadId) REFERENCES threads(id) ON DELETE CASCADE,
     INDEX idxThread (threadId)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE threadVotes (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
@@ -50,4 +50,4 @@ CREATE TABLE threadVotes (
     UNIQUE KEY uniqueVote (threadId, userId),
     FOREIGN KEY (threadId) REFERENCES threads(id) ON DELETE CASCADE,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

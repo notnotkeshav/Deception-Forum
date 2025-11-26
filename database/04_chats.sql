@@ -6,7 +6,7 @@ CREATE TABLE chatGroups (
     createdBy CHAR(36) NOT NULL,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (createdBy) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE groupMembers (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
@@ -17,7 +17,7 @@ CREATE TABLE groupMembers (
     joinedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (groupId) REFERENCES chatGroups(id) ON DELETE CASCADE,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE groupMessages (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
@@ -31,7 +31,7 @@ CREATE TABLE groupMessages (
     sentAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (groupId) REFERENCES chatGroups(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE privateChats (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
@@ -40,7 +40,7 @@ CREATE TABLE privateChats (
     startedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user1Id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (user2Id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE privateChatMessages (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
@@ -52,7 +52,7 @@ CREATE TABLE privateChatMessages (
     sentAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (chatId) REFERENCES privateChats(id) ON DELETE CASCADE,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE chatNotifications (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
@@ -71,7 +71,7 @@ CREATE TABLE chatNotifications (
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (chatId) REFERENCES privateChats(id) ON DELETE CASCADE,
     UNIQUE KEY uniq_chat_notification (userId, chatId, eventType)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE groupMessageVotes (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
@@ -82,7 +82,7 @@ CREATE TABLE groupMessageVotes (
     UNIQUE KEY uniqueVote (messageId, userId),
     FOREIGN KEY (messageId) REFERENCES groupMessages(id) ON DELETE CASCADE,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE privateChatVotes (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
@@ -93,7 +93,7 @@ CREATE TABLE privateChatVotes (
     UNIQUE KEY uniqueVote (messageId, userId),
     FOREIGN KEY (messageId) REFERENCES privateChatMessages(id) ON DELETE CASCADE,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 ALTER TABLE privateChatMessages 
 ADD COLUMN upvoteCount INT DEFAULT 0,
@@ -115,4 +115,4 @@ CREATE TABLE chatReadStatus (
     FOREIGN KEY (chatId) REFERENCES privateChats(id) ON DELETE CASCADE,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_user_read (userId, lastReadAt)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

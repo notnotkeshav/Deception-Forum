@@ -12,7 +12,7 @@ CREATE TABLE notifications (
     INDEX idx_user_created (userId, created_at),
     INDEX idx_user_read (userId, read_at),
     INDEX idx_type (type)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE notification_settings (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
@@ -23,12 +23,12 @@ CREATE TABLE notification_settings (
     comment_vote BOOLEAN DEFAULT TRUE,
     new_thread BOOLEAN DEFAULT FALSE,
     mention BOOLEAN DEFAULT TRUE,
-    system BOOLEAN DEFAULT TRUE,
+    `system` BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY unique_user_settings (userId),
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO notification_settings (userId) 
 SELECT id FROM users 

@@ -15,7 +15,7 @@ CREATE TABLE comments (
     FOREIGN KEY (threadId) REFERENCES threads(id) ON DELETE CASCADE,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (parentCommentId) REFERENCES comments(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE commentVotes (
     id CHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
@@ -26,4 +26,4 @@ CREATE TABLE commentVotes (
     UNIQUE KEY uniqueVote (commentId, userId),
     FOREIGN KEY (commentId) REFERENCES comments(id) ON DELETE CASCADE,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
