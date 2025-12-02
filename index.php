@@ -9,7 +9,7 @@ require(BASE_PATH . "Backend/Utils/functions.php");
 include('browser-check.php');
 
 // Load environment variables (commented out as per your previous setup)
-// loadEnv(base_path("Backend/Core/.env"));
+// loadEnv(base_path(".env"));
 
 spl_autoload_register(function ($class) {
    $class =  str_replace('\\', '/', $class);

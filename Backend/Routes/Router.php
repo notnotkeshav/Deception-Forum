@@ -382,7 +382,7 @@ class Router
    protected function abort($code = 404)
    {
       http_response_code($code);
-      require view("errors/{$code}.php");
+      view("errors/{$code}.php");
       die();
    }
 

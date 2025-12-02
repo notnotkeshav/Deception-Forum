@@ -11,6 +11,7 @@
    <script src="/public/javascripts/purify.min.js"></script>
    <script src="/public/javascripts/custom.js"></script>
    <title>Forum</title>
+<link rel="shortcut icon" href="/public/images/favicon.ico" type="image/x-icon">
 </head>
 
 <body>
