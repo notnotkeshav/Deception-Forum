@@ -8,7 +8,7 @@ const BASE_PATH = __DIR__ . "/";
 require(BASE_PATH . "Backend/Utils/functions.php");
 include('browser-check.php');
 
-loadEnv(base_path("Backend/Core/.env"));
+// loadEnv(base_path("Backend/Core/.env"));
 
 spl_autoload_register(function ($class) {
    $class =  str_replace('\\', '/', $class);

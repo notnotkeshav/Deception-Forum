@@ -4,7 +4,7 @@ use Backend\Core\App;
 
 const BASE_PATH = __DIR__ . "/";
 require(BASE_PATH . "Backend/Utils/functions.php");
-loadEnv(base_path("Backend/Core/.env"));
+// loadEnv(base_path("Backend/Core/.env"));
 
 spl_autoload_register(function ($class) {
    $class =  str_replace('\\', '/', $class);
@@ -15,7 +15,7 @@ require(base_path("Backend/Core/bootstrap.php"));
 
 $mailer = App::container()->resolve('Core\Mailer');
 echo __DIR__ . PHP_EOL;
-$queueDir = __DIR__ . '/backend/core/email_queue';
+$queueDir = __DIR__ . '/Backend/Core/email_queue';
 
 $files = glob($queueDir . '/*.json');
 
