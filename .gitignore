@@ -3,3 +3,4 @@ cache
 email_queue
 crash*
 mail.php
+logs
