@@ -223,7 +223,7 @@ function loadEnv(string $file): void
  */
 function queueEmail(string $to, string $subject, string $body): bool
 {
-    $queueDir = __DIR__ . "/../core/email_queue";
+    $queueDir = __DIR__ . "/../Core/email_queue";
 
     if (!is_dir($queueDir)) {
         mkdir($queueDir, 0755, true);

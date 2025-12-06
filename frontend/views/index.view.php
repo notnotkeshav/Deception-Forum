@@ -10,8 +10,6 @@
         @font-face {
             font-family: 'vamp';
             src: url('/public/fonts/ScaryVampire.ttf') format('truetype');
-            font-weight: normal;
-            font-style: normal;
         }
 
         * {
@@ -572,7 +570,7 @@
 
                     setTimeout(() => {
                         // Redirect to signup with invite code
-                        window.location.href = `/signup?invite-code=${encodeURIComponent(inviteCodeValue)}`;
+                        window.location.href = `/signup?invite=${encodeURIComponent(inviteCodeValue)}`;
                     }, 1500);
 
                 } else {
