@@ -260,7 +260,10 @@
             link.classList.add('active');
         }
     });
+</script>
 
+<?php if (!empty($_SESSION['user']['accessLevel']) && $_SESSION['user']['accessLevel'] >= 5): ?>
+<script type="text/javascript">
     // ========================================
     // NOTIFICATION POLLING SYSTEM
     // ========================================
@@ -370,3 +373,4 @@
         });
     })();
 </script>
+<?php endif; ?>
