@@ -7,7 +7,7 @@ class CaptchaGenerator
     private array $fonts;
     private array $colors;
     
-    public function __construct(int $width = 200, int $height = 80, int $length = 10)
+    public function __construct(int $width = 200, int $height = 80, int $length = 5)
     {
         $this->width = $width;
         $this->height = $height;
@@ -32,7 +32,7 @@ class CaptchaGenerator
     public function generateCode(): string
     {
         // Use alphanumeric characters, excluding confusing ones
-        $characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        $characters = '0123456789';
         $code = '';
         
         for ($i = 0; $i < $this->length; $i++) {
