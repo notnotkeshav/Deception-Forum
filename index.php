@@ -3,6 +3,8 @@
 use Backend\Utils\ValidationException;
 use Backend\Routes\Router;
 
+ini_set('session.gc_maxlifetime', 9000);
+session_set_cookie_params(9000);
 session_start();
 const BASE_PATH = __DIR__ . "/";
 require(BASE_PATH . "Backend/Utils/functions.php");
@@ -101,8 +103,8 @@ logSecurityEvent();
 // ============================================
 
 $currentTime = time();
-// $sessionLifetime = 150 * 60; // 150 minutes in seconds
-$sessionLifetime = 3 * 60; // 3 minutes for testing
+$sessionLifetime = 150 * 60; // 150 minutes in seconds
+// $sessionLifetime = 3 * 60; // 3 minutes for testing
 
 // Check if user is authenticated
 if (!empty($_SESSION['userId']) && !empty($_SESSION['token'])) {
