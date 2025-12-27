@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const SESSION_LIFETIME = 150 * 60 * 1000; // 150 minutes
+  let SESSION_LIFETIME = 150 * 60 * 1000; // 150 minutes
   const WARNING_INTERVALS = [30, 60, 90, 120]; // Warnings only
   const CHECK_INTERVAL = 60 * 1000;
 
@@ -21,6 +21,7 @@
       .then(data => {
         if (data.success) {
           sessionStartTime = data.details.session_started * 1000;
+          SESSION_LIFETIME = data.details.session_lifetime * 1000;
         }
       })
       .catch(err => console.error('Session check failed:', err));
