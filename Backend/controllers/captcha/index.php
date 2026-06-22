@@ -154,13 +154,37 @@ class CaptchaVerifier
 {
     private string $sessionKey;
     private int $expireTime;
-    
+    private string $lockoutKey = 'captcha_lockout';
+    private int $maxAttempts = 5;
+    private int $lockoutDuration = 900; // 15 minutes
+
     public function __construct(string $sessionKey = 'captcha_code', int $expireTime = 12)
     {
         $this->sessionKey = $sessionKey;
-        $this->expireTime = $expireTime; // 2 minutes default
+        $this->expireTime = $expireTime;
     }
-    
+
+    public function isLockedOut(): bool
+    {
+        if (!isset($_SESSION[$this->lockoutKey])) {
+            return false;
+        }
+        $lockout = $_SESSION[$this->lockoutKey];
+        if (time() < $lockout['until']) {
+            return true;
+        }
+        unset($_SESSION[$this->lockoutKey]);
+        return false;
+    }
+
+    public function lockoutSecondsRemaining(): int
+    {
+        if (!isset($_SESSION[$this->lockoutKey])) {
+            return 0;
+        }
+        return max(0, $_SESSION[$this->lockoutKey]['until'] - time());
+    }
+
     public function storeCode(string $code): void
     {
         $_SESSION[$this->sessionKey] = [
@@ -168,41 +192,53 @@ class CaptchaVerifier
             'timestamp' => time()
         ];
     }
-    
+
     public function verify(string $userInput): bool
     {
         if (!isset($_SESSION[$this->sessionKey])) {
             return false;
         }
-        
+
         $stored = $_SESSION[$this->sessionKey];
-        
-        // Check if expired
+
         if (time() - $stored['timestamp'] > $this->expireTime) {
             $this->clearCode();
             return false;
         }
-        
-        // Verify code (case-insensitive)
+
         $isValid = strtoupper(trim($userInput)) === $stored['code'];
-        
-        // Clear the code after verification attempt (one-time use)
         $this->clearCode();
-        
+
+        if (!$isValid) {
+            $this->recordFailedAttempt();
+        } else {
+            unset($_SESSION[$this->lockoutKey]);
+        }
+
         return $isValid;
     }
-    
+
+    private function recordFailedAttempt(): void
+    {
+        $lockout = $_SESSION[$this->lockoutKey] ?? ['attempts' => 0, 'until' => 0];
+        $lockout['attempts']++;
+        if ($lockout['attempts'] >= $this->maxAttempts) {
+            $lockout['until'] = time() + $this->lockoutDuration;
+            $lockout['attempts'] = 0;
+        }
+        $_SESSION[$this->lockoutKey] = $lockout;
+    }
+
     public function clearCode(): void
     {
         unset($_SESSION[$this->sessionKey]);
     }
-    
+
     public function isExpired(): bool
     {
         if (!isset($_SESSION[$this->sessionKey])) {
             return true;
         }
-        
         return time() - $_SESSION[$this->sessionKey]['timestamp'] > $this->expireTime;
     }
 }
@@ -228,16 +264,17 @@ try {
     } elseif ($method === 'POST') {
         // Verify CAPTCHA
         header('Content-Type: application/json');
-        
+
         $verifier = new CaptchaVerifier();
         $input = $_POST['captcha'] ?? '';
-        
-        $response = [
-            'success' => false,
-            'message' => ''
-        ];
-        
-        if (empty($input)) {
+
+        $response = ['success' => false, 'message' => ''];
+
+        if ($verifier->isLockedOut()) {
+            $remaining = ceil($verifier->lockoutSecondsRemaining() / 60);
+            $response['message'] = "Too many failed attempts. Try again in {$remaining} minute(s).";
+            $response['locked_out'] = true;
+        } elseif (empty($input)) {
             $response['message'] = 'Please enter the CAPTCHA code.';
         } elseif ($verifier->verify($input)) {
             $response['success'] = true;
@@ -245,7 +282,7 @@ try {
         } else {
             $response['message'] = 'Invalid or expired CAPTCHA code.';
         }
-        
+
         echo json_encode($response);
     }
     

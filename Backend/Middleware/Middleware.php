@@ -11,7 +11,7 @@ class Middleware
         'auth' => AuthMiddleware::class,
         'partial_auth' => PartialAuthMiddleware::class,
         'username_rate_limit' => UsernameGenerationMiddleware::class,
-        // 'admin' => AdminMiddleware::class,
+        'admin' => Admin::class,
     ];
 
     public static function resolve($key)

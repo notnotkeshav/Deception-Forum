@@ -2,11 +2,11 @@
   'use strict';
 
   let SESSION_LIFETIME = 150 * 60 * 1000; // 150 minutes
-  const WARNING_INTERVALS = [30, 60, 90, 120]; // Warnings only
+  const WARNING_INTERVALS = [30, 15, 10, 5]; // minutes remaining
   const CHECK_INTERVAL = 60 * 1000;
 
   let sessionStartTime = null;
-  let lastWarningShown = 0;
+  let lastWarningShown = Infinity;
 
   function init() {
     if (!document.body.dataset.authenticated) return;
@@ -37,10 +37,10 @@
     const minutesRemaining = Math.floor(remaining / 60000);
     const minutesElapsed = Math.floor(elapsed / 60000);
 
-    // Show warnings only
-    for (let warningMinute of WARNING_INTERVALS) {
-      if (minutesElapsed >= warningMinute && lastWarningShown < warningMinute) {
-        lastWarningShown = warningMinute;
+    // Warn when minutes remaining crosses a threshold
+    for (let threshold of WARNING_INTERVALS) {
+      if (minutesRemaining <= threshold && lastWarningShown > threshold) {
+        lastWarningShown = threshold;
         alert(`⚠️ Session Warning\n\nYour session will expire in ${minutesRemaining} minutes.\n\nAfter expiry, you'll need to re-verify with TOTP.`);
         break;
       }
