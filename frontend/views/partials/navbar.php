@@ -366,11 +366,6 @@
                 pollNotifications();
             }
         });
-
-        // Poll when window gains focus
-        window.addEventListener('focus', function() {
-            pollNotifications();
-        });
     })();
 </script>
 <?php endif; ?>

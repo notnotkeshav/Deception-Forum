@@ -3,8 +3,14 @@
 use Backend\Utils\ValidationException;
 use Backend\Routes\Router;
 
-ini_set('session.gc_maxlifetime', 9000);
-session_set_cookie_params(9000);
+define('SESSION_LIFETIME_SECONDS', 150 * 60);
+ini_set('session.gc_maxlifetime', SESSION_LIFETIME_SECONDS);
+session_set_cookie_params([
+    'lifetime' => SESSION_LIFETIME_SECONDS,
+    'httponly' => true,
+    'secure'   => true,
+    'samesite' => 'Strict',
+]);
 session_start();
 const BASE_PATH = __DIR__ . "/";
 require(BASE_PATH . "Backend/Utils/functions.php");
@@ -103,8 +109,8 @@ logSecurityEvent();
 // ============================================
 
 $currentTime = time();
-$sessionLifetime = 150 * 60; // 150 minutes in seconds
-// $sessionLifetime = 3 * 60; // 3 minutes for testing
+$sessionLifetime = SESSION_LIFETIME_SECONDS;
+// $sessionLifetime = 3 * 60; // 3 minutes for testing — also update SESSION_LIFETIME_SECONDS above
 
 // Check if user is authenticated
 if (!empty($_SESSION['userId']) && !empty($_SESSION['token'])) {

@@ -32,7 +32,7 @@ class CaptchaGenerator
     public function generateCode(): string
     {
         // Use alphanumeric characters, excluding confusing ones
-        $characters = '0123456789';
+        $characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         $code = '';
         
         for ($i = 0; $i < $this->length; $i++) {

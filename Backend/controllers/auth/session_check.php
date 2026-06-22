@@ -6,7 +6,7 @@ use Backend\Core\App;
 $currentTime = time();
 $sessionStarted = $_SESSION['session_started'] ?? $currentTime;
 $lastActivity = $_SESSION['last_activity'] ?? $currentTime;
-$sessionLifetime = 150 * 60; 
+$sessionLifetime = SESSION_LIFETIME_SECONDS;
 $timeElapsed = $currentTime - $sessionStarted;
 $timeRemaining = $sessionLifetime - $timeElapsed;
 

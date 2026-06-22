@@ -2,7 +2,7 @@
 <script src="/public/javascripts/thread.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-<?php if (isAuthenticated()): ?>
+<?php if (isAuthenticated() && !empty($_SESSION['user']['accessLevel']) && $_SESSION['user']['accessLevel'] >= 5): ?>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize notification client for authenticated users

@@ -9,6 +9,10 @@ if (!$userId) {
     sendJsonResponse(false, "Unauthorized", [], 401);
 }
 
+if (($_SESSION['user']['accessLevel'] ?? 0) < 5) {
+    sendJsonResponse(false, "Forbidden", [], 403);
+}
+
 try {
     // Get the timestamp of last check from client
     $lastCheck = $_GET['last_check'] ?? null;

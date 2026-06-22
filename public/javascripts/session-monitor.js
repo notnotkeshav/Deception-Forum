@@ -21,7 +21,9 @@
       .then(data => {
         if (data.success) {
           sessionStartTime = data.details.session_started * 1000;
-          SESSION_LIFETIME = data.details.session_lifetime * 1000;
+          if (data.details?.session_lifetime) {
+            SESSION_LIFETIME = data.details.session_lifetime * 1000;
+          }
         }
       })
       .catch(err => console.error('Session check failed:', err));

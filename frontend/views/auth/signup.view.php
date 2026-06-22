@@ -525,7 +525,7 @@
                id="captcha-input"
                placeholder="Enter the cipher"
                autocomplete="off"
-               maxlength="10">
+               maxlength="5">
             <div class="captcha-hint">Click image to refresh if unclear</div>
          </div>
          <div class="modal-footer">
