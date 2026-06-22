@@ -2,95 +2,116 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Running the Application
+## Commands
 
-This is a PHP application served via a web server (Apache/Nginx). There is no build step.
+```bash
+bash sql.sh                    # import all DB schema files in order
+php mail-worker.php            # flush the email queue (run on cron or manually)
+php notification-cleanup.php   # delete notifications older than 30 days
+```
 
-- **Database setup**: Import SQL files in order using the helper script:
-  ```bash
-  bash sql.sh
-  ```
-  Or manually: `mysql -u <user> -p forum < database/01_auth.sql`
+**Environment** — create `.env` in the project root (not tracked):
+```
+DB_HOST, DB_PORT, DB_NAME, DB_CHARSET, DB_USERNAME, DB_PASSWORD
+MAILER_HOST, MAILER_PORT, MAILER_USERNAME, MAILER_PASSWORD, MAILER_ENCRYPTION, MAILER_FROM_EMAIL, MAILER_FROM_NAME
+```
 
-- **Mail worker** (process email queue): `php mail-worker.php`
+## Documentation
 
-- **Notification cleanup**: `php notification-cleanup.php`
+Full system docs live in `docs/`:
 
-- **Environment**: Copy `.env` (not tracked) with keys: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_CHARSET`, `DB_USERNAME`, `DB_PASSWORD`, `MAILER_HOST`, `MAILER_PORT`, `MAILER_USERNAME`, `MAILER_PASSWORD`, `MAILER_ENCRYPTION`, `MAILER_FROM_EMAIL`, `MAILER_FROM_NAME`
+| File | Covers |
+|------|--------|
+| `docs/architecture.md` | Request lifecycle, routing, DI container, workers, cache |
+| `docs/auth.md` | Access levels, registration, 3-step login, TOTP, CAPTCHA, middleware keys |
+| `docs/api.md` | Every endpoint — method, URI, middleware, description |
+| `docs/database.md` | All table schemas, indexes, stored procedures |
+| `docs/notifications.md` | Polling architecture, settings, badge UI |
+| `docs/security.md` | Session config, CSRF, logging, password rules |
+| `docs/chats.md` | Private and group chat data model and polling |
 
-## Architecture Overview
+## Architecture
 
-### Request Lifecycle
+### Request Lifecycle (`index.php`)
 
-All HTTP requests enter through `index.php`, which:
-1. Starts the PHP session and checks session expiry (150 min limit)
-2. Logs security events to `logs/security_YYYY-MM-DD_HH.log`
-3. Instantiates `Router` and loads `Backend/Routes/routes.php`
-4. Routes to a controller file under `Backend/controllers/`, applying middleware in order
+1. Define `SESSION_LIFETIME_SECONDS = 150 * 60`. Set `gc_maxlifetime`, `session_set_cookie_params` (HttpOnly, Secure, SameSite=Strict), then `session_start()`.
+2. Register the autoloader (`Backend\Core\Database` → `Backend/Core/Database.php`). No Composer.
+3. Bootstrap DI container — binds `Core\Database`, `Core\Cache`, `Core\Mailer`, `Core\TemplateLoader`.
+4. Log every request to `logs/security_YYYY-MM-DD_HH.log`; threats also to `logs/threats_YYYY-MM-DD.log`.
+5. Check session expiry for authenticated users; redirect expired sessions to `/verify-totp?action=renew`.
+6. Dispatch through `Router`.
 
-### Custom MVC Framework
+**Session lifetime is defined once as `SESSION_LIFETIME_SECONDS`.** Both `index.php` (expiry logic) and `session_check.php` (JS client sync) read this constant. Never hardcode `150 * 60` elsewhere.
 
-There is no third-party framework. Everything is hand-rolled:
+### Routing & Controllers
 
-- **Router** (`Backend/Routes/Router.php`): Matches exact URI strings to controller PHP files. Supports `->only()` / `->middleware()` chaining. Controllers are `require`d directly (not instantiated as classes).
-- **Controllers** (`Backend/controllers/**/*.php`): Plain PHP scripts that receive the request and call `view()` or `sendJsonResponse()`. They mirror the route structure (e.g. `auth/signin.php`, `threads/all.php`).
-- **Views** (`frontend/views/**/*.php`): Rendered via the global `view(string $path, array $args)` helper, which maps to `frontend/views/`.
-- **Middleware** (`Backend/Middleware/Middleware.php`): Resolved by string key (`'auth'`, `'guest'`, `'partial_auth'`). All middleware classes live in the same file. The `only()` shorthand and `middleware()` on routes both push keys onto the route's middleware array.
-- **DI Container** (`Backend/Core/Container.php`, bootstrapped in `Backend/Core/bootstrap.php`): Services are bound by key and lazily resolved. The main services are `Core\Database`, `Core\Cache`, `Core\Mailer`, `Core\TemplateLoader`.
+`Backend/Routes/Router.php` — exact URI string matching only (no dynamic segments). Controllers are plain PHP files `require`d directly. Middleware applied in order: global → group → route-specific.
 
-### Autoloading
+```php
+$router->get('/threads', 'threads/all.php')->only('auth');
+$router->put('/thread/lock', 'moderators/lock.php')->only('admin');
+```
 
-Uses a custom `spl_autoload_register` in `index.php` that converts namespace separators to directory separators and appends `.php`. No Composer. Namespace `Backend\Core\Database` → `Backend/Core/Database.php`.
+### Middleware Keys
+
+| Key | Behaviour |
+|-----|-----------|
+| `auth` | Full session required (`user` + `token` + non-expired `token_expiration`) |
+| `guest` | Blocks authenticated users |
+| `partial_auth` | Between credential check and TOTP step |
+| `admin` | Requires `$_SESSION['moderator'] === true` — `Backend/Middleware/Admin.php` |
+| `username_rate_limit` | 7 username-generation requests / IP / hour via file cache |
 
 ### Authentication Flow
 
-Three-step auth with session state flags:
-1. **Credentials** (signin) → sets `$_SESSION['partial_auth']` (5 min TTL)
-2. **TOTP verification** (`/verify-totp`) → sets full session: `$_SESSION['user']`, `$_SESSION['token']`, `$_SESSION['userId']`, `$_SESSION['token_expiration']`
-3. **Session expiry** (150 min) → redirects to `/verify-totp?action=renew` to re-authenticate without full signout
+```
+POST /signin → partial_auth session (5 min TTL)
+POST /verify-totp → full session: user, token, userId, token_expiration (24h), session_started
+```
 
-Middleware keys: `auth` (full session required), `guest` (no session), `partial_auth` (between credentials and TOTP). Signup requires an invite code generated by existing users (`accessLevel` 5+).
+Session warnings fire client-side at **30, 15, 10, 5 minutes remaining** (not elapsed).  
+On expiry, server redirects to `/verify-totp?action=renew&returnTo=<uri>`.
 
-### Database
+Access levels: 1–4 standard, 5+ can generate invites and receive real-time notifications, 15 = VeinKeeper (system, non-loginable).
 
-`Backend/Core/Database.php` wraps PDO with a naive connection pool. Use `App::resolve('Core\Database')` to get the instance. All queries use named parameters. The database is named `forum` (MySQL/InnoDB, utf8mb4).
+### CAPTCHA (`Backend/controllers/captcha/index.php`)
 
-### Email Queue
+- Charset: `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (no ambiguous 0/O/1/I)
+- Length: 5 — `maxlength="5"` on all captcha inputs
+- Lockout: 5 failed attempts → 15-minute session lockout (`CaptchaVerifier`)
+- POST response includes `"locked_out": true` when locked
 
-Emails are not sent synchronously. `queueEmail()` writes a JSON job file to `Backend/Core/email_queue/`. The `mail-worker.php` script processes and deletes them. Run the worker on a cron or manually.
+### Notifications
 
-### File-based Cache
+`/notifications/poll` is protected by `auth` middleware **and** a server-side `accessLevel >= 5` check inside the controller. The `accessLevel >= 5` condition in `navbar.php` and `footer.php` is a frontend optimisation only — the API enforces it independently.
 
-`Backend/Core/Cache.php` stores serialized PHP data in `Backend/Core/cache/` as MD5-keyed `.cache` files. Used primarily for rate limiting (username generation: 7 requests/hour per IP).
-
-### Frontend
-
-No build toolchain. Static assets served from `public/`:
-- jQuery 3.7.1, Quill (rich text editor), DOMPurify — all vendored
-- Per-feature JS files (`thread.js`, `comment.js`, `private-chat.js`, `group-chat.js`, `notifications.js`, etc.)
-- Chat polling uses long-polling endpoints (`/private-chat/messages/new`, `/group-chat/messages/new`)
-- Notification polling via `/notifications/poll`
+`createNotification($userId, $type, $title, $message, $data)` respects per-user `notification_settings` before inserting.
 
 ### Key Global Helpers (`Backend/Utils/functions.php`)
 
 | Function | Purpose |
 |---|---|
-| `view($path, $args)` | Render a view from `frontend/views/` |
+| `view($path, $args)` | Render `frontend/views/$path`, extracting `$args` |
 | `sendJsonResponse($ok, $msg, $details, $code)` | Emit JSON and exit |
 | `redirect($url)` | Header redirect + exit |
-| `abort($code, $data)` | Render error page and die |
-| `authUser()` | Returns `$_SESSION['user']` or null |
-| `queueEmail($to, $subject, $body)` | Queue email for background send |
-| `verifyCsrfToken($token)` | Validate CSRF; calls `abort(419)` on failure |
+| `abort($code, $data)` | Render error view and die |
+| `authUser()` | `$_SESSION['user']` or null |
+| `queueEmail($to, $subject, $body)` | Write job to `Backend/Core/email_queue/` |
+| `verifyCsrfToken($token)` | Validate CSRF; `abort(419)` on mismatch |
 | `createNotification(...)` | Insert notification respecting user settings |
+| `isGroupMember($groupId, $userId)` | Check active group membership |
 
-### Database Schema Files
+### Database
 
-Apply in order — each file depends on the previous:
-- `01_auth.sql` — users, passwords, inviteCodes, passwordResets, TOTP columns, profile_privacy
-- `02_threads.sql` — threads
-- `03_comments.sql` — comments
-- `04_chats.sql` — private and group chats
-- `05_moderator.sql` — moderator tables
-- `06_notifications.sql` — notifications, notification_settings
-- `07_procedure.sql` — stored procedures
+PDO wrapper at `App::resolve('Core\Database')`. All queries use named parameters. Database: `forum` (MySQL/InnoDB, utf8mb4_unicode_ci). Voting logic runs through stored procedures (`07_procedure.sql`) that toggle votes and recount atomically.
+
+Schema load order: `01_auth` → `02_threads` → `03_comments` → `04_chats` → `05_moderator` → `06_notifications` → `07_procedure`
+
+### Email & Cache
+
+- Emails never sent synchronously — `queueEmail()` writes JSON to `Backend/Core/email_queue/`; `mail-worker.php` processes and deletes them.
+- File cache (`Backend/Core/Cache.php`): MD5-keyed `.cache` files in `Backend/Core/cache/`. Used for username-gen rate limiting.
+
+### Frontend
+
+No build step. Vendored: jQuery 3.7.1, Quill, DOMPurify, Bootstrap. Per-feature JS in `public/javascripts/`. Chat uses long-polling (`/private-chat/messages/new`, `/group-chat/messages/new`). Notification polling at `/notifications/poll` (30s interval, pauses when tab hidden).
