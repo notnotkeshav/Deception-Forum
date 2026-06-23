@@ -371,12 +371,15 @@ class MessageFeatures {
 
             if (data.success) {
                 this.showAlert('User unblocked', 'success');
+                return Promise.resolve(data);
             } else {
                 this.showAlert('Error: ' + data.message, 'danger');
+                return Promise.reject(data);
             }
         } catch (error) {
             console.error('Error unblocking user:', error);
             this.showAlert('Error unblocking user', 'danger');
+            return Promise.reject(error);
         }
     }
 
