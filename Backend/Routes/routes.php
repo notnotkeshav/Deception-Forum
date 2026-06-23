@@ -105,3 +105,18 @@ $router->put("/profile/settings", "profile/settings.php")->only('auth'); // AJAX
 // Captcha Routes
 $router->get('/captcha', 'captcha/index.php');
 $router->post('/captcha', 'captcha/index.php');
+
+// ============================================
+// NEW FEATURES (Reactions, Delete, Edit, Block)
+// ============================================
+
+// Reaction Routes
+$router->post('/reactions/add', 'reactions/add.php')->only('auth'); // Add/remove reaction to thread or comment
+
+// Comment Routes (Enhanced)
+$router->delete('/comment/delete', 'comments/delete.php')->only('auth'); // Delete a comment
+$router->post('/comment/delete', 'comments/delete.php')->only('auth'); // Delete a comment (fallback for non-DELETE requests)
+
+// User Blocking Routes
+$router->post('/user/block', 'users/block.php')->only('auth'); // Block or unblock a user
+$router->get('/user/blocks', 'users/blocks.php')->only('auth'); // List blocked users

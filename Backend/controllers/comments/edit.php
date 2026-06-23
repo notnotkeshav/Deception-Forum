@@ -31,7 +31,7 @@ if ($method === 'PUT') {
 
         // Check if the comment exists
         $stmt = $db->query(
-            "SELECT userId FROM comments WHERE id = :id AND isDeleted = 0",
+            "SELECT userId, content FROM comments WHERE id = :id AND isDeleted = 0",
             [":id" => $body['commentId']]
         );
         $existingComment = $db->getOne($stmt);
@@ -47,9 +47,16 @@ if ($method === 'PUT') {
             sendJsonResponse(false, "Forbidden. You do not have permission to edit this comment.", [], 403);
         }
 
-        // Update the comment
+        // Store previous content in edit history
+        $db->query(
+            "INSERT INTO message_edit_history (messageType, messageId, previousContent, editedBy)
+             VALUES (:type, :id, :content, :user)",
+            [':type' => 'comment', ':id' => $body['commentId'], ':content' => $existingComment['content'], ':user' => $_SESSION['userId']]
+        );
+
+        // Update the comment with edit timestamp and counter
         $stmt = $db->query(
-            "UPDATE comments SET content = :content, editedAt = NOW() WHERE id = :commentId",
+            "UPDATE comments SET content = :content, edited_at = NOW(), edit_count = COALESCE(edit_count, 0) + 1 WHERE id = :commentId",
             [
                 ":content" => $body['comment'],
                 ":commentId" => $body['commentId']
