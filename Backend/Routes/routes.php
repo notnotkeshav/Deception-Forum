@@ -130,6 +130,14 @@ $router->get('/admin/management', 'admin/management.php')->only('admin'); // Adm
 $router->post('/admin/suspend-user', 'admin/suspend-user.php')->only('admin'); // Suspend/unsuspend user
 $router->post('/admin/hide-post', 'admin/hide-post.php')->only('admin'); // Hide/unhide post (thread or comment)
 
+// Invite Management Routes (Superadmin only - Level 5+)
+$router->get('/admin/invites-dashboard', 'admin/invites-dashboard.php')->only('admin'); // Invite management dashboard
+$router->get('/admin/invites', 'admin/invites.php')->only('admin'); // Get invites
+$router->post('/admin/invites', 'admin/invites.php')->only('admin'); // Create invites
+$router->delete('/admin/invites', 'admin/invites.php')->only('admin'); // Revoke invites
+$router->get('/admin/invites/batches', 'admin/invites-batches.php')->only('admin'); // Get batches
+$router->get('/admin/invites/export', 'admin/invites-export.php')->only('admin'); // Export as CSV
+
 // Theme System Routes (Level 4+)
 $router->get('/settings/theme', 'settings/theme.php')->only('auth'); // Get user themes
 $router->post('/settings/theme', 'settings/theme.php')->only('auth'); // Set active theme
