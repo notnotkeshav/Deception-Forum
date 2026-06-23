@@ -14,7 +14,8 @@ session_set_cookie_params([
 session_start();
 const BASE_PATH = __DIR__ . "/";
 require(BASE_PATH . "Backend/Utils/functions.php");
-include('browser-check.php');
+// Temporarily disable browser check for testing
+// include('browser-check.php');
 
 // Load environment variables (commented out as per your previous setup)
 // loadEnv(base_path(".env"));

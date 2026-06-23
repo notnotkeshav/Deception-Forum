@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: deception_forum_db
+    environment:
+      MYSQL_ROOT_PASSWORD: admin12345
+      MYSQL_DATABASE: forum
+      MYSQL_USER: forum_user
+      MYSQL_PASSWORD: forum_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database:/docker-entrypoint-initdb.d
+    networks:
+      - forum_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  php:
+    build: .
+    container_name: deception_forum_app
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: forum
+      DB_CHARSET: utf8mb4
+      DB_USERNAME: forum_user
+      DB_PASSWORD: forum_password
+      MAILER_HOST: smtp.gmail.com
+      MAILER_PORT: 587
+      MAILER_USERNAME: your-email@gmail.com
+      MAILER_PASSWORD: your-app-password
+      MAILER_ENCRYPTION: tls
+      MAILER_FROM_EMAIL: noreply@deceptionforum.local
+      MAILER_FROM_NAME: "Deception Forum"
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+    networks:
+      - forum_network
+
+networks:
+  forum_network:
+    driver: bridge
+
+volumes:
+  mysql_data:

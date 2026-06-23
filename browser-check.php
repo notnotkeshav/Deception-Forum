@@ -4,12 +4,29 @@
  * Multi-layered validation to prevent spoofing
  */
 
+// Exempt certain endpoints from browser check (CAPTCHA, API endpoints, etc.)
+$requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+$exemptPaths = ['/captcha', '/session/check', '/api/'];
+$isExempt = false;
+
+foreach ($exemptPaths as $path) {
+    if (strpos($requestUri, $path) === 0) {
+        $isExempt = true;
+        break;
+    }
+}
+
+// Skip browser check for exempt paths
+if ($isExempt) {
+    return;  // Continue without browser validation
+}
+
 // Input validation and sanitization
 $userAgent = '';
 if (isset($_SERVER['HTTP_USER_AGENT'])) {
     // Use htmlspecialchars instead of deprecated FILTER_SANITIZE_STRING
     $userAgent = htmlspecialchars($_SERVER['HTTP_USER_AGENT'], ENT_QUOTES, 'UTF-8');
-    
+
     // Length check to prevent extremely long user agents
     if (strlen($userAgent) > 1000) {
         $userAgent = substr($userAgent, 0, 1000);
