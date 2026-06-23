@@ -7,13 +7,13 @@ use forum;
 -- ENHANCE INVITE CODES TABLE FOR BETTER TRACKING
 -- ============================================================
 
-ALTER TABLE inviteCodes ADD COLUMN IF NOT EXISTS isRevoked BOOLEAN DEFAULT FALSE;
-ALTER TABLE inviteCodes ADD COLUMN IF NOT EXISTS revokedBy CHAR(36) NULL;
-ALTER TABLE inviteCodes ADD COLUMN IF NOT EXISTS revokedAt TIMESTAMP NULL;
-ALTER TABLE inviteCodes ADD COLUMN IF NOT EXISTS expiresAt TIMESTAMP NULL;
-ALTER TABLE inviteCodes ADD COLUMN IF NOT EXISTS maxUses INT DEFAULT 1;
-ALTER TABLE inviteCodes ADD COLUMN IF NOT EXISTS timesUsed INT DEFAULT 0;
-ALTER TABLE inviteCodes ADD COLUMN IF NOT EXISTS metadata JSON;
+ALTER TABLE inviteCodes ADD COLUMN isRevoked BOOLEAN DEFAULT FALSE;
+ALTER TABLE inviteCodes ADD COLUMN revokedBy CHAR(36) NULL;
+ALTER TABLE inviteCodes ADD COLUMN revokedAt TIMESTAMP NULL;
+ALTER TABLE inviteCodes ADD COLUMN expiresAt TIMESTAMP NULL;
+ALTER TABLE inviteCodes ADD COLUMN maxUses INT DEFAULT 1;
+ALTER TABLE inviteCodes ADD COLUMN timesUsed INT DEFAULT 0;
+ALTER TABLE inviteCodes ADD COLUMN metadata JSON;
 
 CREATE INDEX idx_invites_revoked ON inviteCodes(isRevoked);
 CREATE INDEX idx_invites_expires ON inviteCodes(expiresAt);
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS invite_batches (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Link invites to batches
-ALTER TABLE inviteCodes ADD COLUMN IF NOT EXISTS batchId CHAR(36) NULL;
+ALTER TABLE inviteCodes ADD COLUMN batchId CHAR(36) NULL;
 ALTER TABLE inviteCodes ADD CONSTRAINT fk_invites_batch FOREIGN KEY (batchId)
     REFERENCES invite_batches(id) ON DELETE SET NULL;
 
