@@ -115,6 +115,12 @@ if ($method === 'GET') {
          throw new Exception("Account not found or deactivated or banned", 404);
       }
 
+      // Check if user is suspended
+      if ($user['isSuspended'] == 1) {
+         $reason = $user['suspendReason'] ? " Reason: " . $user['suspendReason'] : "";
+         throw new Exception("Account suspended.{$reason}", 423);
+      }
+
       // Define keys for tracking lockouts, failed attempts, and suspicious IPs
       $userIdHash = hash('sha256', $user['id']);
       $lockoutKey = "lockout:" . $userIdHash;

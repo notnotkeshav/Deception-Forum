@@ -120,3 +120,37 @@ $router->post('/comment/delete', 'comments/delete.php')->only('auth'); // Delete
 // User Blocking Routes
 $router->post('/user/block', 'users/block.php')->only('auth'); // Block or unblock a user
 $router->get('/user/blocks', 'users/blocks.php')->only('auth'); // List blocked users
+
+// ============================================
+// ADVANCED FEATURES (Suspension, Hiding, Themes, Plugins, Shortcuts, Drafts)
+// ============================================
+
+// Admin Routes (Suspension & Post Hiding)
+$router->get('/admin/management', 'admin/management.php')->only('admin'); // Admin dashboard
+$router->post('/admin/suspend-user', 'admin/suspend-user.php')->only('admin'); // Suspend/unsuspend user
+$router->post('/admin/hide-post', 'admin/hide-post.php')->only('admin'); // Hide/unhide post (thread or comment)
+
+// Theme System Routes (Level 4+)
+$router->get('/settings/theme', 'settings/theme.php')->only('auth'); // Get user themes
+$router->post('/settings/theme', 'settings/theme.php')->only('auth'); // Set active theme
+$router->put('/settings/theme', 'settings/theme.php')->only('auth'); // Create custom theme (level 4+)
+$router->delete('/settings/theme', 'settings/theme.php')->only('auth'); // Delete custom theme
+
+// Keyboard Shortcuts Routes
+$router->get('/settings/shortcuts', 'settings/shortcuts.php')->only('auth'); // Get user shortcuts
+$router->post('/settings/shortcuts', 'settings/shortcuts.php')->only('auth'); // Update shortcut
+$router->delete('/settings/shortcuts', 'settings/shortcuts.php')->only('auth'); // Reset to default
+
+// Draft Auto-Save Routes
+$router->post('/drafts/save', 'drafts/save.php')->only('auth'); // Save draft
+$router->get('/drafts/retrieve', 'drafts/retrieve.php')->only('auth'); // Get drafts
+
+// Plugin System Routes
+$router->get('/plugins/manage', 'plugins/manage.php')->only('auth'); // List user's plugins
+$router->post('/plugins/manage', 'plugins/manage.php')->only('auth'); // Install plugin
+$router->put('/plugins/manage', 'plugins/manage.php')->only('auth'); // Update plugin config
+$router->delete('/plugins/manage', 'plugins/manage.php')->only('auth'); // Uninstall plugin
+$router->get('/plugins/marketplace', 'plugins/marketplace.php')->only('auth'); // Browse public plugins
+
+// Advanced Settings Page
+$router->get('/settings/advanced', 'settings/advanced.php')->only('auth'); // Advanced settings page
